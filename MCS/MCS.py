@@ -55,7 +55,7 @@ class MCS_optimizer:
         else:
             self.batchNum=1
 
-    def __levyFlight(self, dimension,step, naive):
+    def __levy_flight(self, dimension,step, naive):
         '''
         name: __levyFlight
         fuction: helper function for implement two type of levy flight
