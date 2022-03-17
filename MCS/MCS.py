@@ -8,32 +8,41 @@ Author: YesunHuang
 Date: 2022-03-16 19:38:26
 '''
 ### import everything
+from cmath import sqrt
+import abc
 import math
+import numpy as np
 from msilib.schema import Class
 from sympy import GoldenRatio
 import torch
 from torch import nn
 from torch.nn import functional as F
 
+class standardCostFunc(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def evaluate(X:torch.Tensor,Y:torch.Tensor,weight:torch.Tensor):
+        pass
+
 class MCS_optimizer:
     '''A class for implement MCS'''
 
-    def __init__(self,costFunc,weightRange,**kwargs):
+    def __init__(self, netWeight:torch.Tensor, costFunc:standardCostFunc, dataIter, **kwargs):
         '''
         name:__init__ 
         fuction: initialize the optimizer
-        param {*costFunc}: cost function
-        param {*weightRange}: function range
+        param {*netWeight}: a vector of net Weight
+        param {*costFunc}: class of cost function
+        param {*dataIter}: iterator of data
         param {***kargs}:
             param{*p_drop}: ratio of bad nest that to be dropped
             param{*nestNum}: number of maximum nests
             param{*maxGeneration}: maximum of Generation
             param{*maxLevyStepSize}: Levy step size
-            param{*batchNum}: Num of Batches
-        return {*}
+        return {*MCS_optimizer}
         '''     
         self.costFunc=costFunc
-        self.weightRange=weightRange
+        self.netWeight=netWeight
+        self.dataIter=dataIter
         if 'p_drop' in kwargs:
             self.p_drop=kwargs['p_drop']
         else:
@@ -42,18 +51,12 @@ class MCS_optimizer:
             self.nestNum=kwargs['nestNum']
         else:
             self.nestNum=25
-        if 'maxGeneration' in kwargs:
-            self.maxGeneration=kwargs['maxGeneration']
-        else:
-            self.maxGeneration=100
         if 'maxLevyStepSize' in kwargs:
             self.maxLevyStepSize=kwargs['maxLevyStepSize']
         else:
-            self.maxLevyStepSize=1
-        if 'batchNum' in kwargs:
-            self.batchNum=kwargs['batchNum']
-        else:
-            self.batchNum=1
+            self.maxLevyStepSize=1.0
+        self.currentGeneration=0
+        self.__initialize()
 
     def __levy_flight(self, dimension,step, naive):
         '''
@@ -65,14 +68,63 @@ class MCS_optimizer:
         return {*flight step}
         '''        
         if naive:
-            distance=step*(torch.rand(dimension)-0.5*torch.ones(dimension))*torch.pow(torch.rand(dimension),-1.0/dimension)
+            distance=step*(2.0*torch.rand(dimension)-torch.ones(dimension))*torch.pow(torch.rand(dimension),-1.0/dimension)
             return distance*torch.ones(dimension)
         else:
             radius=2.0
             direction=torch.ones(dimension)
             while radius>1.0:
-                direction=torch.rand(dimension)-0.5*torch.ones(dimension)
+                direction=2*torch.rand(dimension)-torch.ones(dimension)
                 radius=torch.sqrt(torch.sum(direction**2)).item()
             direction=direction/radius
             distance=step*torch.pow(torch.rand(1),-1.0/dimension)
             return distance*direction
+    
+    def __initialize(self):
+        '''
+        name: __initialize
+        fuction: initialize all the nests
+        return {*initial loss}
+        '''            
+        self.nestWeight=[]
+        self.nestIndexAndCost=[]
+        for X,Y in self.dataIter:
+            cost=self.costFunc.evaluate(X,Y,self.netWeight)
+            for i in range(0,self.nestNum):
+                self.nestWeight.append(self.netWeight.clone())
+                self.nestIndexAndCost.append((i,cost))
+            break
+    
+    def step(self,**kwarg):
+        if 'isNaive' in kwarg:
+            isNaive=kwarg['isNaive']
+        else:
+            isNaive=False
+        self.currentGeneration+=1
+        #calculate current levy step
+        currentLevyStep=self.maxLevyStepSize/sqrt(self.currentGeneration)
+        #iteration across all the batches
+        for X,Y in self.dataIter:
+            #sort all the nests by order of cost
+            self.nestIndexAndCost.sort(key=lambda element:element[1])
+            #update abandoned nests
+            startAbandonIndex=self.nestNum-round(self.nestNum*self.p_drop)
+            for i in range(startAbandonIndex,self.nestNum):
+                deltaWeight=self.__levy_flight(self.nestWeight.shape[0],\
+                                               currentLevyStep,\
+                                               isNaive)
+                self.nestWeight[self.nestIndexAndCost[i][0]].add_(deltaWeight)
+                self.nestIndexAndCost[i][1]=self.costFunc.evaluate(\
+                                            X,Y,\
+                                            self.nestWeight[self.nestIndexAndCost[i][0]])
+            #update top nests
+            for i in range(0,startAbandonIndex):
+                j=np.random.randint(0,startAbandonIndex,1)
+                
+                
+
+
+
+        
+
+
