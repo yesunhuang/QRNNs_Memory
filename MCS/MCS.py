@@ -62,7 +62,7 @@ class MCS_optimizer:
         self.currentGeneration=0
         self.__initialize()
 
-    def __levy_flight(self, dimension,step, naive):
+    def __levy_flight(self, dimension, step, naive):
         '''
         name: __levyFlight
         fuction: helper function for implement two type of levy flight
@@ -84,11 +84,10 @@ class MCS_optimizer:
             distance=step*torch.pow(torch.rand(1),-1.0/dimension)
             return distance*direction
     
-    def __initialize(self,randomInit):
+    def __initialize(self):
         '''
         name: __initialize
         fuction: initialize all the nests
-        param {*randomInit}: use randn to initialize
         return {*initial loss}
         '''            
         self.nestWeight=[]
