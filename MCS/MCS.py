@@ -1,6 +1,6 @@
 '''
 Name: MCS.py
-Desriptption: A class for implement modified Cuckoo Search algorithm 
+Desriptption: A class for implementing modified Cuckoo Search algorithm 
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: For Pytorch 
@@ -23,7 +23,7 @@ class standardCostFunc(metaclass=abc.ABCMeta):
         pass
 
 class MCS_optimizer:
-    '''A class for implement MCS'''
+    '''A class for implementing MCS'''
 
     def __init__(self, netWeight:torch.Tensor, costFunc:standardCostFunc, dataIter, **kwargs):
         '''
@@ -65,7 +65,7 @@ class MCS_optimizer:
     def levy_flight(self, dimension, step, naive):
         '''
         name: __levyFlight
-        fuction: helper function for implement two type of levy flight
+        fuction: helper function for implement two types of levy flight
         param {*dimension}: dimension of the space
         param {*step}: levy step
         param {*naive}: if using a naive flight or rigorous flight.
