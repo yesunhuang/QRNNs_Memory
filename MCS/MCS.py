@@ -37,6 +37,7 @@ class MCS_optimizer:
             param{*nestNum}: number of maximum nests
             param{*maxGeneration}: maximum of Generation
             param{*maxLevyStepSize}: Levy step size
+            param{*randomInit}: use randn to initialize
         return {*MCS_optimizer}
         '''     
         self.costFunc=costFunc
@@ -54,6 +55,10 @@ class MCS_optimizer:
             self.maxLevyStepSize=kwargs['maxLevyStepSize']
         else:
             self.maxLevyStepSize=1.0
+        if 'randomInit' in kwargs:
+            self.randInit=kwargs['randomInit']
+        else:
+            self.randInit=False
         self.currentGeneration=0
         self.__initialize()
 
@@ -79,20 +84,33 @@ class MCS_optimizer:
             distance=step*torch.pow(torch.rand(1),-1.0/dimension)
             return distance*direction
     
-    def __initialize(self):
+    def __initialize(self,randomInit):
         '''
         name: __initialize
         fuction: initialize all the nests
+        param {*randomInit}: use randn to initialize
         return {*initial loss}
         '''            
         self.nestWeight=[]
         self.nestIndexAndCost=[]
-        for X,Y in self.dataIter:
-            cost=self.costFunc.evaluate(X,Y,self.netWeight)
-            for i in range(0,self.nestNum):
-                self.nestWeight.append(self.netWeight.clone())
-                self.nestIndexAndCost.append((i,cost))
-            break
+        if self.randomInit:
+            min=self.netWeight.min()
+            max=self.netWeight.max()
+            self.nestWeight.append(self.netWeight.clone())
+            for X,Y in self.dataIter:
+                for i in range(1,self.nestNum):
+                    newWeight=min+(max-min)*torch.randn(self.netWeight.shape)
+                    self.nestWeight.append(newWeight.clone())
+                    cost=self.costFunc.evaluate(X,Y,newWeight)
+                    self.nestIndexAndCost.append((i,cost))
+                break
+        else:
+            for X,Y in self.dataIter:
+                cost=self.costFunc.evaluate(X,Y,self.netWeight)
+                for i in range(0,self.nestNum):
+                    self.nestWeight.append(self.netWeight.clone())
+                    self.nestIndexAndCost.append((i,cost))
+                break
         return cost
     
     def step(self,**kwarg):
