@@ -62,7 +62,7 @@ class MCS_optimizer:
         self.currentGeneration=0
         self.__initialize()
 
-    def __levy_flight(self, dimension, step, naive):
+    def levy_flight(self, dimension, step, naive):
         '''
         name: __levyFlight
         fuction: helper function for implement two type of levy flight
@@ -136,7 +136,7 @@ class MCS_optimizer:
             epochLoss.append(self.nestIndexAndCost[0][1])
             startAbandonIndex=self.nestNum-round(self.nestNum*self.p_drop)
             for i in range(startAbandonIndex,self.nestNum):
-                deltaWeight=self.__levy_flight(self.nestWeight.shape[0],\
+                deltaWeight=self.levy_flight(self.nestWeight.shape[0],\
                                                currentLevyStep,\
                                                isNaive)
                 self.nestWeight[self.nestIndexAndCost[i][0]].add_(deltaWeight)
@@ -149,7 +149,7 @@ class MCS_optimizer:
                 if self.nestWeight[self.nestIndexAndCost[j]].equal(\
                     self.nestWeight[self.nestIndexAndCost[i]]):
                     topLevyStep=self.maxLevyStepSize/(self.currentGeneration**2)
-                    deltaWeight=self.__levy_flight(self.nestWeight.shape[0],\
+                    deltaWeight=self.levy_flight(self.nestWeight.shape[0],\
                                                topLevyStep,\
                                                isNaive)
                     newWeight=self.nestWeight[self.nestIndexAndCost[j][0]].clone()
