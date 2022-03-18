@@ -12,7 +12,6 @@ from cmath import sqrt
 import abc
 import math
 import numpy as np
-from msilib.schema import Class
 from sympy import GoldenRatio
 import torch
 from torch import nn
@@ -94,8 +93,16 @@ class MCS_optimizer:
                 self.nestWeight.append(self.netWeight.clone())
                 self.nestIndexAndCost.append((i,cost))
             break
+        return cost
     
     def step(self,**kwarg):
+        '''
+        name: step
+        fuction: update the nests
+        param {***kwarg}:
+            param{*isNaive}: whether using naive LevyFlight.
+        return {*loss}
+        '''     
         if 'isNaive' in kwarg:
             isNaive=kwarg['isNaive']
         else:
@@ -103,11 +110,13 @@ class MCS_optimizer:
         self.currentGeneration+=1
         #calculate current levy step
         currentLevyStep=self.maxLevyStepSize/sqrt(self.currentGeneration)
+        epochLoss=[]
         #iteration across all the batches
         for X,Y in self.dataIter:
             #sort all the nests by order of cost
             self.nestIndexAndCost.sort(key=lambda element:element[1])
             #update abandoned nests
+            epochLoss.append(self.nestIndexAndCost[0][1])
             startAbandonIndex=self.nestNum-round(self.nestNum*self.p_drop)
             for i in range(startAbandonIndex,self.nestNum):
                 deltaWeight=self.__levy_flight(self.nestWeight.shape[0],\
@@ -120,11 +129,34 @@ class MCS_optimizer:
             #update top nests
             for i in range(0,startAbandonIndex):
                 j=np.random.randint(0,startAbandonIndex,1)
-                
-                
-
-
-
-        
-
-
+                if self.nestWeight[self.nestIndexAndCost[j]].equal(\
+                    self.nestWeight[self.nestIndexAndCost[i]]):
+                    topLevyStep=self.maxLevyStepSize/(self.currentGeneration**2)
+                    deltaWeight=self.__levy_flight(self.nestWeight.shape[0],\
+                                               topLevyStep,\
+                                               isNaive)
+                    newWeight=self.nestWeight[self.nestIndexAndCost[j][0]].clone()
+                    newWeight.add_(deltaWeight)
+                    newCost=self.costFunc.evaluate(X,Y,newWeight)
+                    k=np.random.randint(0,self.nestNum)
+                    if newCost<self.nestIndexAndCost[k][1]:
+                        self.nestWeight[self.nestIndexAndCost[k][0]]=newWeight.clone()
+                        self.nestIndexAndCost[k][1]=newCost
+                else:
+                    deltaWeight=(self.nestWeight[self.nestIndexAndCost[i]]\
+                            -self.nestWeight[self.nestIndexAndCost[j]])/(float(GoldenRatio))
+                    if self.nestIndexAndCost[i]<self.nestIndexAndCost[j]:
+                        newWeight=self.nestWeight[self.nestIndexAndCost[j][0]].clone()
+                        newWeight.add_(deltaWeight)
+                    else:
+                        newWeight=self.nestWeight[self.nestIndexAndCost[i][0]].clone()
+                        newWeight.add_(-deltaWeight)
+                    newCost=self.costFunc.evaluate(X,Y,newWeight)
+                    k=np.random.randint(0,self.nestNum)
+                    if newCost<self.nestIndexAndCost[k][1]:
+                        self.nestWeight[self.nestIndexAndCost[k][0]]=newWeight.clone()
+                        self.nestIndexAndCost[k][1]=newCost
+        self.nestIndexAndCost.sort(key=lambda element:element[1])
+        topWeight=self.nestWeight[self.nestIndexAndCost[0][0]].clone()
+        self.netWeight.add_(-self.netWeight+topWeight)
+        return (self.nestIndexAndCost[0][1],np.mean(np.asarray(epochLoss)))                 
