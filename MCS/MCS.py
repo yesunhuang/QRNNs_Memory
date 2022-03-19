@@ -8,24 +8,23 @@ Author: YesunHuang
 Date: 2022-03-16 19:38:26
 '''
 ### import everything
-from cmath import sqrt
 import abc
-import math
+import torch
 import numpy as np
 from sympy import GoldenRatio
-import torch
-from torch import nn
-from torch.nn import functional as F
 
-class standardCostFunc(metaclass=abc.ABCMeta):
+
+class StandardCostFunc(metaclass=abc.ABCMeta):
+    '''A abstract base class for cost function'''
+    
     @abc.abstractmethod
-    def evaluate(X:torch.Tensor,Y:torch.Tensor,weight:tuple):
+    def evaluate(self,X:torch.Tensor,Y:torch.Tensor,weight:tuple):
         pass
 
 class MCS_optimizer:
     '''A class for implementing MCS'''
 
-    def __init__(self, netWeight:tuple, costFunc:standardCostFunc, dataIter, **kwargs):
+    def __init__(self, netWeight:tuple, costFunc:StandardCostFunc, dataIter, **kwargs):
         '''
         name:__init__ 
         fuction: initialize the optimizer
@@ -62,6 +61,7 @@ class MCS_optimizer:
         self.currentGeneration=0
         self.__initialize()
 
+    @torch.no_grad()
     def levy_flight(self, dimension, step, naive):
         '''
         name: __levyFlight
@@ -84,6 +84,7 @@ class MCS_optimizer:
             distance=step*torch.pow(torch.rand(1),-1.0/dimension)
             return distance*direction
     
+    @torch.no_grad()
     def __initialize(self):
         '''
         name: __initialize
@@ -92,8 +93,8 @@ class MCS_optimizer:
         self.nestWeight=[]
         self.nestIndexAndCost=[]
         X,Y=next(iter(self.dataIter))
-        if self.randomInit:
-            for i in range(1,self.nestNum):
+        if self.randInit:
+            for i in range(0,self.nestNum):
                 newWeightTuple=()
                 for weight in self.netWeight:
                     minWeight=torch.min(weight)
@@ -102,16 +103,17 @@ class MCS_optimizer:
                     newWeightTuple+=(newWeight.clone(),)
                 self.nestWeight.append(newWeightTuple)
                 cost=self.costFunc.evaluate(X,Y,newWeightTuple)
-                self.nestIndexAndCost.append((i,cost))
+                self.nestIndexAndCost.append([i,cost])
         else:
             cost=self.costFunc.evaluate(X,Y,self.netWeight)
             for i in range(0,self.nestNum):
                 newWeightTuple=()
                 for weight in self.netWeight:
                     newWeightTuple+=(weight.clone(),)
-                    self.nestWeight.append(newWeightTuple)
-                    self.nestIndexAndCost.append((i,cost))
+                self.nestWeight.append(newWeightTuple)
+                self.nestIndexAndCost.append([i,cost])
     
+    @torch.no_grad()
     def step(self,**kwarg):
         '''
         name: step
@@ -126,10 +128,10 @@ class MCS_optimizer:
             isNaive=False
         self.currentGeneration+=1
         #calculate current levy step
-        currentLevyStep=self.maxLevyStepSize/sqrt(self.currentGeneration)
+        currentLevyStep=self.maxLevyStepSize/np.sqrt(self.currentGeneration)
         epochLoss=[]
         getDeltaWeight=lambda weight,step:self.levy_flight(\
-            weight.numel(),step,isNaive).reshape(weight.shape())
+            weight.numel(),step,isNaive).reshape(weight.shape)
         #iteration across all the batches
         for X,Y in self.dataIter:
             #sort all the nests by order of cost
@@ -138,14 +140,14 @@ class MCS_optimizer:
             epochLoss.append(self.nestIndexAndCost[0][1])
             startAbandonIndex=self.nestNum-round(self.nestNum*self.p_drop)
             for i in range(startAbandonIndex,self.nestNum):
-                for weight in self.nestWeight[self.nestIndexAndCost[i]]:
+                for weight in self.nestWeight[self.nestIndexAndCost[i][0]]:
                     deltaWeight=getDeltaWeight(weight,currentLevyStep)
                     weight.add_(deltaWeight)
                 self.nestIndexAndCost[i][1]=self.costFunc.evaluate(X,Y,\
                     self.nestWeight[self.nestIndexAndCost[i][0]])
             #update top nests
             for i in range(0,startAbandonIndex):
-                j=np.random.randint(0,startAbandonIndex,1)
+                j=np.random.randint(0,startAbandonIndex)
                 if i==j:
                     topLevyStep=self.maxLevyStepSize/(self.currentGeneration**2)
                     newWeightTuple=()
@@ -161,7 +163,7 @@ class MCS_optimizer:
                         self.nestIndexAndCost[k][1]=newCost
                 else:
                     #careful implement required
-                    flag=self.nestIndexAndCost[i]<self.nestIndexAndCost[j]
+                    flag=self.nestIndexAndCost[i][1]<self.nestIndexAndCost[j][1]
                     weightTuple_i=self.nestWeight[self.nestIndexAndCost[i][0]]
                     weightTuple_j=self.nestWeight[self.nestIndexAndCost[j][0]]
                     newWeightTuple=()
@@ -185,4 +187,16 @@ class MCS_optimizer:
         for weightIndex in range(0,len(self.netWeight)):
             topWeight=self.nestWeight[self.nestIndexAndCost[0][0]][weightIndex]
             self.netWeight[weightIndex].add_(-self.netWeight[weightIndex]+topWeight)
-        return (self.nestIndexAndCost[0][1],np.mean(np.asarray(epochLoss)))                 
+        return (self.nestIndexAndCost[0][1],np.mean(np.asarray(epochLoss)))    
+
+    @torch.no_grad()
+    def zero_grad(self):
+        '''
+        name: zero_grad
+        fuction: clear out all the grad
+        '''
+        for weight in self.netWeight:
+            weight.grad.zero_()
+        for weightTuple in self.nestWeight:
+            for weight in weightTuple:
+                weight.grad.zero_()
