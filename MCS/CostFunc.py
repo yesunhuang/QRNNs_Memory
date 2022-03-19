@@ -27,7 +27,7 @@ class SNNCostFuncL2(StandardCostFunc):
     '''A L2 cost function for simple NN'''
     def __init__(self,net:StandardSNN):
         self.net=net
-        self.loss=nn.MSELoss(reduce=False)
+        self.loss=nn.MSELoss(reduction='none')
     
     def __call__(self,YHat,Y):
 
