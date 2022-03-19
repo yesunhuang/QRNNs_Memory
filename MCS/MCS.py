@@ -19,17 +19,17 @@ from torch.nn import functional as F
 
 class standardCostFunc(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def evaluate(X:torch.Tensor,Y:torch.Tensor,weight:torch.Tensor):
+    def evaluate(X:torch.Tensor,Y:torch.Tensor,weight:tuple):
         pass
 
 class MCS_optimizer:
     '''A class for implementing MCS'''
 
-    def __init__(self, netWeight:torch.Tensor, costFunc:standardCostFunc, dataIter, **kwargs):
+    def __init__(self, netWeight:tuple, costFunc:standardCostFunc, dataIter, **kwargs):
         '''
         name:__init__ 
         fuction: initialize the optimizer
-        param {*netWeight}: a vector of net Weight
+        param {*netWeight}: a tuple of net Weight
         param {*costFunc}: class of cost function
         param {*dataIter}: iterator of data
         param {***kargs}:
@@ -88,29 +88,29 @@ class MCS_optimizer:
         '''
         name: __initialize
         fuction: initialize all the nests
-        return {*initial loss}
         '''            
         self.nestWeight=[]
         self.nestIndexAndCost=[]
+        X,Y=next(iter(self.dataIter))
         if self.randomInit:
-            min=self.netWeight.min()
-            max=self.netWeight.max()
-            self.nestWeight.append(self.netWeight.clone())
-            for X,Y in self.dataIter:
-                for i in range(1,self.nestNum):
-                    newWeight=min+(max-min)*torch.randn(self.netWeight.shape)
-                    self.nestWeight.append(newWeight.clone())
-                    cost=self.costFunc.evaluate(X,Y,newWeight)
-                    self.nestIndexAndCost.append((i,cost))
-                break
+            for i in range(1,self.nestNum):
+                newWeightTuple=()
+                for weight in self.netWeight:
+                    minWeight=torch.min(weight)
+                    maxWeight=torch.max(weight)
+                    newWeight=minWeight+(maxWeight-minWeight)*torch.randn(weight.shape)
+                    newWeightTuple+=(newWeight.clone(),)
+                self.nestWeight.append(newWeightTuple)
+                cost=self.costFunc.evaluate(X,Y,newWeightTuple)
+                self.nestIndexAndCost.append((i,cost))
         else:
-            for X,Y in self.dataIter:
-                cost=self.costFunc.evaluate(X,Y,self.netWeight)
-                for i in range(0,self.nestNum):
-                    self.nestWeight.append(self.netWeight.clone())
+            cost=self.costFunc.evaluate(X,Y,self.netWeight)
+            for i in range(0,self.nestNum):
+                newWeightTuple=()
+                for weight in self.netWeight:
+                    newWeightTuple+=(weight.clone(),)
+                    self.nestWeight.append(newWeightTuple)
                     self.nestIndexAndCost.append((i,cost))
-                break
-        return cost
     
     def step(self,**kwarg):
         '''
@@ -128,6 +128,8 @@ class MCS_optimizer:
         #calculate current levy step
         currentLevyStep=self.maxLevyStepSize/sqrt(self.currentGeneration)
         epochLoss=[]
+        getDeltaWeight=lambda weight,step:self.levy_flight(\
+            weight.numel(),step,isNaive).reshape(weight.shape())
         #iteration across all the batches
         for X,Y in self.dataIter:
             #sort all the nests by order of cost
@@ -136,44 +138,51 @@ class MCS_optimizer:
             epochLoss.append(self.nestIndexAndCost[0][1])
             startAbandonIndex=self.nestNum-round(self.nestNum*self.p_drop)
             for i in range(startAbandonIndex,self.nestNum):
-                deltaWeight=self.levy_flight(self.nestWeight.shape[0],\
-                                               currentLevyStep,\
-                                               isNaive)
-                self.nestWeight[self.nestIndexAndCost[i][0]].add_(deltaWeight)
-                self.nestIndexAndCost[i][1]=self.costFunc.evaluate(\
-                                            X,Y,\
-                                            self.nestWeight[self.nestIndexAndCost[i][0]])
+                for weight in self.nestWeight[self.nestIndexAndCost[i]]:
+                    deltaWeight=getDeltaWeight(weight,currentLevyStep)
+                    weight.add_(deltaWeight)
+                self.nestIndexAndCost[i][1]=self.costFunc.evaluate(X,Y,\
+                    self.nestWeight[self.nestIndexAndCost[i][0]])
             #update top nests
             for i in range(0,startAbandonIndex):
                 j=np.random.randint(0,startAbandonIndex,1)
-                if self.nestWeight[self.nestIndexAndCost[j]].equal(\
-                    self.nestWeight[self.nestIndexAndCost[i]]):
+                if i==j:
                     topLevyStep=self.maxLevyStepSize/(self.currentGeneration**2)
-                    deltaWeight=self.levy_flight(self.nestWeight.shape[0],\
-                                               topLevyStep,\
-                                               isNaive)
-                    newWeight=self.nestWeight[self.nestIndexAndCost[j][0]].clone()
-                    newWeight.add_(deltaWeight)
-                    newCost=self.costFunc.evaluate(X,Y,newWeight)
+                    newWeightTuple=()
+                    for weight in self.netWeight:
+                        deltaWeight=getDeltaWeight(weight,topLevyStep)
+                        newWeight=weight.clone()
+                        newWeight.add_(deltaWeight)
+                        newWeightTuple+=(newWeight,)
+                    newCost=self.costFunc.evaluate(X,Y,newWeightTuple)
                     k=np.random.randint(0,self.nestNum)
                     if newCost<self.nestIndexAndCost[k][1]:
-                        self.nestWeight[self.nestIndexAndCost[k][0]]=newWeight.clone()
+                        self.nestWeight[self.nestIndexAndCost[k][0]]=newWeightTuple
                         self.nestIndexAndCost[k][1]=newCost
                 else:
-                    deltaWeight=(self.nestWeight[self.nestIndexAndCost[i]]\
-                            -self.nestWeight[self.nestIndexAndCost[j]])/(float(GoldenRatio))
-                    if self.nestIndexAndCost[i]<self.nestIndexAndCost[j]:
-                        newWeight=self.nestWeight[self.nestIndexAndCost[j][0]].clone()
-                        newWeight.add_(deltaWeight)
-                    else:
-                        newWeight=self.nestWeight[self.nestIndexAndCost[i][0]].clone()
-                        newWeight.add_(-deltaWeight)
-                    newCost=self.costFunc.evaluate(X,Y,newWeight)
+                    #careful implement required
+                    flag=self.nestIndexAndCost[i]<self.nestIndexAndCost[j]
+                    weightTuple_i=self.nestWeight[self.nestIndexAndCost[i][0]]
+                    weightTuple_j=self.nestWeight[self.nestIndexAndCost[j][0]]
+                    newWeightTuple=()
+                    for weightIndex in range(0,len(self.netWeight)):
+                        deltaWeight=(weightTuple_i[weightIndex]\
+                            -weightTuple_j[weightIndex])/(float(GoldenRatio))
+                        if flag:
+                            newWeight=weightTuple_j[weightIndex].clone()
+                            newWeight.add_(deltaWeight)
+                        else:
+                            newWeight=weightTuple_i[weightIndex].clone()
+                            newWeight.add_(-deltaWeight)
+                        newWeightTuple+=(newWeight,)
+                    newCost=self.costFunc.evaluate(X,Y,newWeightTuple)
                     k=np.random.randint(0,self.nestNum)
                     if newCost<self.nestIndexAndCost[k][1]:
-                        self.nestWeight[self.nestIndexAndCost[k][0]]=newWeight.clone()
+                        self.nestWeight[self.nestIndexAndCost[k][0]]=newWeightTuple
                         self.nestIndexAndCost[k][1]=newCost
         self.nestIndexAndCost.sort(key=lambda element:element[1])
-        topWeight=self.nestWeight[self.nestIndexAndCost[0][0]].clone()
-        self.netWeight.add_(-self.netWeight+topWeight)
+        #update netWeight
+        for weightIndex in range(0,len(self.netWeight)):
+            topWeight=self.nestWeight[self.nestIndexAndCost[0][0]][weightIndex]
+            self.netWeight[weightIndex].add_(-self.netWeight[weightIndex]+topWeight)
         return (self.nestIndexAndCost[0][1],np.mean(np.asarray(epochLoss)))                 
