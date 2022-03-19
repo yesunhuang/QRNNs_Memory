@@ -10,7 +10,7 @@ For studying the memory and performance of Quantum Recurrent Neural Networks (QR
 
 ## Current Status
 
-* **The MCS optimizer for QNNs has been built and work well.**
+* **The MCS optimizer for QNNs has been built and works well.**
     1. Gradient Free
     2. Noise Resistance
     3. Pytorch Compatible
