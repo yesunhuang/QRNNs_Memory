@@ -8,8 +8,6 @@ Author: YesunHuang
 Date: 2022-03-19 13:14:16
 '''
 ### import everything
-from functools import reduce
-from multiprocessing import reduction
 import torch
 import abc
 from MCS import StandardCostFunc

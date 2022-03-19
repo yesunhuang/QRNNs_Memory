@@ -12,6 +12,7 @@ import abc
 import torch
 import numpy as np
 from sympy import GoldenRatio
+from GradFreeOptimizer import StandardGradFreeOptimizer
 
 
 class StandardCostFunc(metaclass=abc.ABCMeta):
@@ -21,7 +22,7 @@ class StandardCostFunc(metaclass=abc.ABCMeta):
     def evaluate(self,X:torch.Tensor,Y:torch.Tensor,weight:tuple):
         pass
 
-class MCSOptimizer:
+class MCSOptimizer(StandardGradFreeOptimizer):
     '''A class for implementing MCS'''
 
     def __init__(self, netWeight:tuple, costFunc:StandardCostFunc, dataIter, **kwargs):
