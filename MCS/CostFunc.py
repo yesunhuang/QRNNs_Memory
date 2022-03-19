@@ -9,6 +9,7 @@ Date: 2022-03-19 13:14:16
 '''
 ### import everything
 from functools import reduce
+from multiprocessing import reduction
 import torch
 import abc
 from MCS import StandardCostFunc
@@ -23,16 +24,31 @@ class StandardSNN(metaclass=abc.ABCMeta):
         '''A abstract method which forward with given weight'''
         pass
 
-class SNNCostFuncL2(StandardCostFunc):
+class GradFreeMSELoss(StandardCostFunc):
     '''A L2 cost function for simple NN'''
-    def __init__(self,net:StandardSNN):
+
+    def __init__(self,net:StandardSNN,**kwargs):
+        '''
+        name: __init__
+        fuction: initialize the gradient free MSE loss
+        param {*net}: the NN net attached to this cost function
+        param {**kwargs}: the same with nn.MSE
+        '''        
         self.net=net
-        self.loss=nn.MSELoss(reduction='none')
+        self.kwargs=kwargs
+        self.loss=nn.MSELoss(**self.kwargs)
     
     def __call__(self,YHat,Y):
-
+        '''
+        name: __call__
+        fuction: simply return the pytorch MSE
+        param {*YHat}: NN output
+        param {*Y}: real output
+        return {*loss}
+        '''    
         return self.loss(YHat,Y)
 
+    @torch.no_grad()
     def evaluate(self,X: torch.Tensor, Y: torch.Tensor, weight: tuple):
         '''
         name: evaluate
@@ -40,6 +56,10 @@ class SNNCostFuncL2(StandardCostFunc):
         param {*X}: input for the nn
         param {*Y}: label output
         return {*cost}: current cost
-        '''        
-        l=self.loss(self.net.call_with_weight(X,weight),Y).sum()
+        '''       
+        if 'reduction' in self.kwargs:
+            if self.kwargs['reduction']=='none':
+                l=self.loss(self.net.call_with_weight(X,weight),Y).sum()
+            else:
+                l=self.loss(self.net.call_with_weight(X,weight),Y)
         return l.item()

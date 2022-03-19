@@ -21,7 +21,7 @@ class StandardCostFunc(metaclass=abc.ABCMeta):
     def evaluate(self,X:torch.Tensor,Y:torch.Tensor,weight:tuple):
         pass
 
-class MCS_optimizer:
+class MCSOptimizer:
     '''A class for implementing MCS'''
 
     def __init__(self, netWeight:tuple, costFunc:StandardCostFunc, dataIter, **kwargs):
