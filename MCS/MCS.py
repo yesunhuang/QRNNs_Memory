@@ -38,6 +38,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
             param{*maxGeneration}: maximum of Generation
             param{*maxLevyStepSize}: Levy step size
             param{*randomInit}: use randn to initialize
+            param{*constantStep}: use constant levy step
         return {*MCS_optimizer}
         '''     
         self.costFunc=costFunc
@@ -59,6 +60,10 @@ class MCSOptimizer(StandardGradFreeOptimizer):
             self.randInit=kwargs['randomInit']
         else:
             self.randInit=False
+        if 'constantStep' in kwargs:
+            self.constantStep=kwargs['constantStep']
+        else:
+            self.constantStep=False
         self.currentGeneration=0
         self.__initialize()
 
@@ -126,7 +131,10 @@ class MCSOptimizer(StandardGradFreeOptimizer):
             isNaive=False
         self.currentGeneration+=1
         #calculate current levy step
-        currentLevyStep=self.maxLevyStepSize/np.sqrt(self.currentGeneration)
+        if not self.constantStep:
+            currentLevyStep=self.maxLevyStepSize/np.sqrt(self.currentGeneration)
+        else:
+            currentLevyStep=self.maxLevyStepSize
         epochLoss=[]
         getDeltaWeight=lambda weight,step:self.__levy_flight(\
             weight.numel(),step,isNaive).reshape(weight.shape)
@@ -147,7 +155,10 @@ class MCSOptimizer(StandardGradFreeOptimizer):
             for i in range(0,startAbandonIndex):
                 j=np.random.randint(0,startAbandonIndex)
                 if i==j:
-                    topLevyStep=self.maxLevyStepSize/(self.currentGeneration**2)
+                    if not self.constantStep:
+                        topLevyStep=self.maxLevyStepSize/(self.currentGeneration**2)
+                    else:
+                        topLevyStep=self.maxLevyStepSize
                     newWeightTuple=()
                     for weight in self.netWeight:
                         deltaWeight=getDeltaWeight(weight,topLevyStep)
