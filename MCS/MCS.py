@@ -63,7 +63,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
         self.__initialize()
 
     @torch.no_grad()
-    def levy_flight(self, dimension, step, naive):
+    def __levy_flight(self,dimension, step, naive):
         '''
         name: __levyFlight
         fuction: helper function for implement two types of levy flight
@@ -72,18 +72,15 @@ class MCSOptimizer(StandardGradFreeOptimizer):
         param {*naive}: if using a naive flight or rigorous flight.
         return {*flight step}
         '''        
-        if naive:
-            distance=step*(2.0*torch.rand(dimension)-torch.ones(dimension))*torch.pow(torch.rand(dimension),-1.0/dimension)
-            return distance*torch.ones(dimension)
-        else:
-            radius=2.0
-            direction=torch.ones(dimension)
+        direction=2*torch.rand(dimension)-torch.ones(dimension)
+        radius=torch.sqrt(torch.sum(direction**2)).item()
+        if not naive:
             while radius>1.0:
-                direction=2*torch.rand(dimension)-torch.ones(dimension)
+                direction[:]=2*torch.rand(dimension)-torch.ones(dimension)
                 radius=torch.sqrt(torch.sum(direction**2)).item()
-            direction=direction/radius
-            distance=step*torch.pow(torch.rand(1),-1.0/dimension)
-            return distance*direction
+        direction[:]=direction/radius
+        distance=step*torch.pow(torch.rand(1),-1.0/dimension)
+        return distance*direction
     
     @torch.no_grad()
     def __initialize(self):
@@ -131,7 +128,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
         #calculate current levy step
         currentLevyStep=self.maxLevyStepSize/np.sqrt(self.currentGeneration)
         epochLoss=[]
-        getDeltaWeight=lambda weight,step:self.levy_flight(\
+        getDeltaWeight=lambda weight,step:self.__levy_flight(\
             weight.numel(),step,isNaive).reshape(weight.shape)
         #iteration across all the batches
         for X,Y in self.dataIter:
