@@ -53,9 +53,9 @@ class MCSOptimizer(StandardGradFreeOptimizer):
         else:
             self.nestNum=25
         if 'maxLevyStepSize' in kwargs:
-            self.maxLevyStepSize=kwargs['maxLevyStepSize']
+            self.maxLevyStepSize=torch.tensor(kwargs['maxLevyStepSize'])
         else:
-            self.maxLevyStepSize=1.0
+            self.maxLevyStepSize=torch.ones(len(netWeight))
         if 'randomInit' in kwargs:
             self.randInit=kwargs['randomInit']
         else:
@@ -128,7 +128,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
         if 'isNaive' in kwarg:
             isNaive=kwarg['isNaive']
         else:
-            isNaive=False
+            isNaive=True
         self.currentGeneration+=1
         #calculate current levy step
         if not self.constantStep:
@@ -138,20 +138,23 @@ class MCSOptimizer(StandardGradFreeOptimizer):
         epochLoss=[]
         getDeltaWeight=lambda weight,step:self.__levy_flight(\
             weight.numel(),step,isNaive).reshape(weight.shape)
+        startAbandonIndex=self.nestNum-round(self.nestNum*self.p_drop)
         #iteration across all the batches
         for X,Y in self.dataIter:
             #sort all the nests by order of cost
             self.nestIndexAndCost.sort(key=lambda element:element[1])
             #update abandoned nests
             epochLoss.append(self.nestIndexAndCost[0][1])
-            startAbandonIndex=self.nestNum-round(self.nestNum*self.p_drop)
             for i in range(startAbandonIndex,self.nestNum):
+                weightIndex=0
                 for weight in self.nestWeight[self.nestIndexAndCost[i][0]]:
-                    deltaWeight=getDeltaWeight(weight,currentLevyStep)
+                    deltaWeight=getDeltaWeight(weight,currentLevyStep[weightIndex])
                     weight.add_(deltaWeight)
+                    weightIndex+=1
                 self.nestIndexAndCost[i][1]=self.costFunc.evaluate(X,Y,\
                     self.nestWeight[self.nestIndexAndCost[i][0]])
             #update top nests
+            #self.nestIndexAndCost.sort(key=lambda element:element[1])
             for i in range(0,startAbandonIndex):
                 j=np.random.randint(0,startAbandonIndex)
                 if i==j:
@@ -160,8 +163,9 @@ class MCSOptimizer(StandardGradFreeOptimizer):
                     else:
                         topLevyStep=self.maxLevyStepSize
                     newWeightTuple=()
+                    weightIndex=0
                     for weight in self.netWeight:
-                        deltaWeight=getDeltaWeight(weight,topLevyStep)
+                        deltaWeight=getDeltaWeight(weight,topLevyStep[weightIndex])
                         newWeight=weight.clone()
                         newWeight.add_(deltaWeight)
                         newWeightTuple+=(newWeight,)
