@@ -64,8 +64,8 @@ class HenonMapDataGen:
             for i in range(self.interval,size-self.interval):
                 self.Y.append(self.HenonFunc(self.X[i],self.X[i-self.interval]))
                 self.X.append(self.Y[i])
-
-        return self.X[:-1],self.Y
+        self.X.pop()
+        return self.X,self.Y
 
     def save_to_CSV(self,fileName:str):
         '''
