@@ -10,6 +10,7 @@ Date: 2022-03-26 20:45:29
 
 #import everything
 from asyncio.proactor_events import _ProactorBaseWritePipeTransport
+from tkinter import Y
 import pandas as pd
 import numpy as np
 import os
@@ -19,7 +20,8 @@ class HenonMapDataGen:
 
     def __init__(self, seed:list,\
                         n:int=1,a:float=1.4,b:float=0.3,\
-                        HeavyMem:bool=True,savepath:str=os.getcwd()):
+                        heavyMem:bool=True,bound:bool=-1.2,\
+                        savepath:str=os.getcwd()):
         '''
         name: __init__
         fuction: initialize the Henon map
@@ -28,9 +30,10 @@ class HenonMapDataGen:
         param {a}: Henon value a
         param {b}: Henon value b
         param {HeavyMem}: if using a heavy memory
+        param {bound}: bound of the data
         param {savepath}: path to save the data
         '''   
-        if HeavyMem:
+        if heavyMem:
             assert len(seed)==n+1,'invalid seed!'
         else:
             assert len(seed)==2*n,'invalid seed!'    
@@ -38,9 +41,10 @@ class HenonMapDataGen:
         self.interval=n
         self.paramA=a
         self.paramB=b
-        self.HenonFunc=lambda X1,X0:1-1.4*X1*X1+0.3*X0
-        self.HeavyMem=HeavyMem
+        self.HenonFunc=lambda X1,X0:1-self.paramA*X1*X1+self.paramB*X0
+        self.HeavyMem=heavyMem
         self.savepath=savepath
+        self.bound=bound
         self.__X=[]
         self.__Y=[]
 
@@ -53,19 +57,23 @@ class HenonMapDataGen:
         '''       
         self.clear_data()
         self.__X=self.__X+self.seed
+        self.__Y=self.__Y+[0.0]*self.interval
         if self.HeavyMem:
             assert size>len(self.seed), 'size not enough!'
-            self.__Y=self.__Y+[0.0]*self.interval
             for i in range(self.interval,size):
-                self.__Y.append(self.HenonFunc(self.__X[i],self.__X[i-self.interval]))
+                Y_next=self.HenonFunc(self.__X[i],self.__X[i-self.interval])
+                if self.interval>1:
+                    self.__Y.append(max(Y_next,self.bound))
+                else:
+                    self.__Y.append(Y_next)
                 self.__X.append(self.__Y[i])
+            self.__X.pop()
         else:
             assert size>len(self.seed)+self.interval, 'size not enough'
-            self.__Y=[0.0]*(2*self.interval)
-            for i in range(self.interval,size-self.interval):
+            for i in range(self.interval,size):
                 self.__Y.append(self.HenonFunc(self.__X[i],self.__X[i-self.interval]))
-                self.__X.append(self.__Y[i])
-        self.__X.pop()
+                if i+self.interval<size:
+                    self.__X.append(self.__Y[i])
         return np.array(self.__X),np.array(self.__Y)
 
     def save_to_CSV(self,fileName:str):
