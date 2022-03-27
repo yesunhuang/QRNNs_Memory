@@ -9,11 +9,11 @@ Date: 2022-03-26 20:45:29
 '''
 
 #import everything
-from asyncio.proactor_events import _ProactorBaseWritePipeTransport
-from tkinter import Y
 import pandas as pd
 import numpy as np
+import torch
 import os
+from SequenceDataLoader import SequenceDataLoader
 
 class HenonMapDataGen:
     '''Generate data of modified Henon Map'''
@@ -105,6 +105,14 @@ class HenonMapDataGen:
         '''
         return np.array(self.__X),np.array(self.__Y)
 
+    def get_data_as_tensor(self):
+        '''
+        name: get_data_as_tensor
+        function: get the data as tensor
+        return {X,Y}: tuple of tensor in the form (X,Y)
+        '''
+        return torch.tensor(self.__X),torch.tensor(self.__Y)
+
     def clear_data(self):
         '''
         name: clear_data
@@ -112,6 +120,7 @@ class HenonMapDataGen:
         '''
         self.__X=[]
         self.__Y=[]
+
 
 
         
