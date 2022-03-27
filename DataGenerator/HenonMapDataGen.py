@@ -13,7 +13,6 @@ from asyncio.proactor_events import _ProactorBaseWritePipeTransport
 import pandas as pd
 import numpy as np
 import os
-import torch
 
 class HenonMapDataGen:
     '''Generate data of modified Henon Map'''
@@ -29,6 +28,7 @@ class HenonMapDataGen:
         param {a}: Henon value a
         param {b}: Henon value b
         param {HeavyMem}: if using a heavy memory
+        param {savepath}: path to save the data
         '''   
         if HeavyMem:
             assert len(seed)==n+1,'invalid seed!'
@@ -41,8 +41,8 @@ class HenonMapDataGen:
         self.HenonFunc=lambda X1,X0:1-1.4*X1*X1+0.3*X0
         self.HeavyMem=HeavyMem
         self.savepath=savepath
-        self.X=[]
-        self.Y=[]
+        self.__X=[]
+        self.__Y=[]
 
     def __call__(self, size:int):
         '''
@@ -51,21 +51,21 @@ class HenonMapDataGen:
         param {size}: size of the data
         return {X,Y}: tuple of list in the form (X,Y)
         '''        
-        self.X=self.X+self.seed
+        self.__X=self.__X+self.seed
         if self.HeavyMem:
             assert size>len(self.seed), 'size not enough!'
-            self.Y=[0.0]*self.interval
+            self.__Y=[0.0]*self.interval
             for i in range(self.interval,size):
-                self.Y.append(self.HenonFunc(self.X[i],self.X[i-self.interval]))
-                self.X.append(self.Y[i])
+                self.__Y.append(self.HenonFunc(self.__X[i],self.__X[i-self.interval]))
+                self.__X.append(self.__Y[i])
         else:
             assert size>len(self.seed)+self.interval, 'size not enough'
-            self.Y=[0.0]*(2*self.interval)
+            self.__Y=[0.0]*(2*self.interval)
             for i in range(self.interval,size-self.interval):
-                self.Y.append(self.HenonFunc(self.X[i],self.X[i-self.interval]))
-                self.X.append(self.Y[i])
-        self.X.pop()
-        return self.X,self.Y
+                self.__Y.append(self.HenonFunc(self.__X[i],self.__X[i-self.interval]))
+                self.__X.append(self.__Y[i])
+        self.__X.pop()
+        return np.array(self.__X),np.array(self.__Y)
 
     def save_to_CSV(self,fileName:str):
         '''
@@ -74,7 +74,7 @@ class HenonMapDataGen:
         param {fileName}: name of the file
         '''
         path=os.path.join(self.savepath,fileName)
-        data=pd.DataFrame({'X':self.X,'Y':self.Y})
+        data=pd.DataFrame({'X':self.__X,'Y':self.__Y})
         data.to_csv(path,index=False)
     
     def read_from_CSV(self,fileName:str):
@@ -85,9 +85,24 @@ class HenonMapDataGen:
         '''
         path=os.path.join(self.savepath,fileName)
         data=pd.read_csv(path)
-        self.X=data['X'].values
-        self.Y=data['Y'].values
+        self.__X=data['X'].values
+        self.__Y=data['Y'].values
 
+    def get_data(self):
+        '''
+        name: get_data
+        function: get the data
+        return {X,Y}: tuple of list in the form (X,Y)
+        '''
+        return np.array(self.__X),np.array(self.__Y)
+
+    def clear_data(self):
+        '''
+        name: clear_data
+        function: clear the data
+        '''
+        self.__X=[]
+        self.__Y=[]
 
 
         
