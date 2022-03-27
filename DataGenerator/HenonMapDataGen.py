@@ -50,11 +50,12 @@ class HenonMapDataGen:
         fuction: generate the Henon data
         param {size}: size of the data
         return {X,Y}: tuple of list in the form (X,Y)
-        '''        
+        '''       
+        self.clear_data()
         self.__X=self.__X+self.seed
         if self.HeavyMem:
             assert size>len(self.seed), 'size not enough!'
-            self.__Y=[0.0]*self.interval
+            self.__Y=self.__Y+[0.0]*self.interval
             for i in range(self.interval,size):
                 self.__Y.append(self.HenonFunc(self.__X[i],self.__X[i-self.interval]))
                 self.__X.append(self.__Y[i])
@@ -85,8 +86,8 @@ class HenonMapDataGen:
         '''
         path=os.path.join(self.savepath,fileName)
         data=pd.read_csv(path)
-        self.__X=data['X'].values
-        self.__Y=data['Y'].values
+        self.__X=data['X'].values.tolist()
+        self.__Y=data['Y'].values.tolist()
 
     def get_data(self):
         '''
