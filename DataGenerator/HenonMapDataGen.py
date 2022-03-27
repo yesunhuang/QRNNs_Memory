@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 import torch
 import os
-from SequenceDataLoader import SequenceDataLoader
+from SequenceDataLoader import  SeqDataLoader
 
 class HenonMapDataGen:
     '''Generate data of modified Henon Map'''
@@ -121,6 +121,32 @@ class HenonMapDataGen:
         self.__X=[]
         self.__Y=[]
 
+    def get_data_iter(self,testSetRatio:float,numStep:int,\
+                        batchSize:int=1,shuffle:bool=True):
+        '''
+        name: get_data_iter 
+        fuction: get the data iter for nns
+        param {testSetRatio}: the ratio of test set
+        param {numStep}: number of step for a single nn data
+        param {batchSize}: size of the mini batch
+        param {shuffle}: if shuffling the data
+        return {trainIter,testIter}
+        '''        
+        assert testSetRatio>0.0 & testSetRatio<1.0,'invalid testSetRatio!'
+        assert numStep>self.interval, 'invalid numStep!'
+
+        testStartIndex=int(len(self.__X)*(1-testSetRatio))
+        data_train=(self.__X[:testStartIndex-1],self.__Y[:testStartIndex-1])
+        data_test=(self.__X[testStartIndex:],self.__Y[testStartIndex:])
+        trainIter=SeqDataLoader(data_train,numStep,self.interval,batchSize,shuffle)
+        testIter=SeqDataLoader(data_test,numStep,self.interval,batchSize,shuffle)
+        return trainIter,testIter
+        
+        
+
+
+        
+        
 
 
         

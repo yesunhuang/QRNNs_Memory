@@ -78,7 +78,7 @@ class SeqDataLoader:
             YsPerBatch=[get_data(j,True) for j in initialIndicesPerBatch]
             yield torch.tensor(XsPerBatch,dtype=torch.float32),torch.tensor(YsPerBatch,dtype=torch.float32)
 
-    def __seq_data_iter_sequential(self,data):
+    def __seq_data_iter_sequential(self):
         '''
         name: __seq_data_iter_sequential
         function: generate the sequential sequence data iterator
