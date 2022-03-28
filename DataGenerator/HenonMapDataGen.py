@@ -108,7 +108,10 @@ class HenonMapDataGen:
         param {fileName}: name of the file
         '''
         path=os.path.join(self.savepath,fileName)
-        data=pd.DataFrame({'X':self.__X,'Y':self.__Y})
+        data=pd.DataFrame({'X':self.__X,'Y':self.__Y,\
+                            'interval':self.interval,\
+                            'paramA':self.paramA,'paramB':self.paramB,\
+                            'bound':self.bound,'heavyMem':self.heavyMem})
         data.to_csv(path,index=False)
     
     def read_from_CSV(self,fileName:str):
@@ -121,6 +124,14 @@ class HenonMapDataGen:
         data=pd.read_csv(path)
         self.__X=data['X'].values.tolist()
         self.__Y=data['Y'].values.tolist()
+        self.interval=data['interval'].values[0]
+        self.paramA=data['paramA'].values[0]
+        self.bound=data['bound'].values[0]
+        self.heavyMem=data['heavyMem'].values[0]
+        if self.heavyMem:
+            self.__seed=self.__X[:self.interval+1]
+        else:
+            self.__seed=self.__X[:2*self.interval]
 
     @property
     def data_as_array(self):
