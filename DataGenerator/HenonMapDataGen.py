@@ -74,7 +74,8 @@ class HenonMapDataGen:
         else:
             assert size>len(self.__seed)+self.interval, 'size not enough'
             for i in range(self.interval,size):
-                self.__Y.append(self.HenonFunc(self.__X[i],self.__X[i-self.interval]))
+                Y_next=self.HenonFunc(self.__X[i],self.__X[i-self.interval])
+                self.__Y.append(max(Y_next,self.bound))
                 if i+self.interval<size:
                     self.__X.append(self.__Y[i])
         return np.array(self.__X),np.array(self.__Y)
@@ -167,7 +168,27 @@ class HenonMapDataGen:
         trainIter=SeqDataLoader(data_train,numStep,self.interval,batchSize,shuffle)
         testIter=SeqDataLoader(data_test,numStep,self.interval,batchSize,shuffle)
         return trainIter,testIter
+    
+    def __len__(self):
+        '''
+        name: __len__
+        function: get the length of the data
+        return {len}: length of the data
+        '''
+        return len(self.__X)
+   
+    def zero_the_data(self,zero_index:list):
+        '''
+        name: zero_the_data
+        param {zero_index}: the index of the seed to be zero
+        function: zero the data
+        '''
         
+        assert self.heavyMem==False,'not support zero_the_data for heavyMem!'
+        for i in range(0,len(self.__X)):
+            if i%self.interval in zero_index:
+                self.__X[i]=0.0
+                self.__Y[i]=0.0
         
 
 

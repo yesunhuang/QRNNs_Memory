@@ -95,3 +95,4 @@ class SeqDataLoader:
             YsPerBatch=Ys[:,i:i+self.numSteps]
             YsPerBatch[:,:self.maskSteps]=0
             yield XsPerBatch,YsPerBatch
+
