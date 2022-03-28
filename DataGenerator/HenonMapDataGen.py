@@ -160,24 +160,28 @@ class HenonMapDataGen:
         self.__Y=[]
 
     def get_data_iter(self,testSetRatio:float,numStep:int,\
-                        batchSize:int=1,shuffle:bool=True):
+                        batchSize:int=1,mask:int=None,shuffle:bool=True):
         '''
         name: get_data_iter 
         fuction: get the data iter for nns
         param {testSetRatio}: the ratio of test set
         param {numStep}: number of step for a single nn data
         param {batchSize}: size of the mini batch
+        param {mask}: steps of mask
         param {shuffle}: if shuffling the data
         return {trainIter,testIter}
         '''        
-        assert testSetRatio>0.0 & testSetRatio<1.0,'invalid testSetRatio!'
+        assert testSetRatio>0.0 and testSetRatio<1.0,'invalid testSetRatio!'
         assert numStep>self.interval, 'invalid numStep!'
+
+        if mask==None:
+            mask=self.interval
 
         testStartIndex=int(len(self.__X)*(1-testSetRatio))
         data_train=(self.__X[:testStartIndex-1],self.__Y[:testStartIndex-1])
         data_test=(self.__X[testStartIndex:],self.__Y[testStartIndex:])
-        trainIter=SeqDataLoader(data_train,numStep,self.interval,batchSize,shuffle)
-        testIter=SeqDataLoader(data_test,numStep,self.interval,batchSize,shuffle)
+        trainIter=SeqDataLoader(data_train,numStep,mask,batchSize,shuffle)
+        testIter=SeqDataLoader(data_test,numStep,mask,batchSize,shuffle)
         return trainIter,testIter
     
     def __len__(self):
@@ -200,6 +204,23 @@ class HenonMapDataGen:
             if i%self.interval in zero_index:
                 self.__X[i]=0.0
                 self.__Y[i]=0.0
+    
+    def __str__(self):
+        '''
+        name: __str__
+        function: print the data info
+        return {str}: the string of the data
+        '''
+        dataInfo='Data Info:\n'+'-'*40
+        dataInfo+='\nData Size: '+str(self.__len__())
+        dataInfo+='\nData Interval: '+str(self.interval)
+        dataInfo+='\nData ParamA: '+str(self.paramA)
+        dataInfo+=', Data ParamB: '+str(self.paramB)
+        dataInfo+='\nData Bound: '+str(self.bound)
+        dataInfo+='\nData HeavyMem: '+str(self.heavyMem)
+        dataInfo+='\nData Seed:\n '+str(self.__seed)
+        dataInfo+='\n'+'-'*40
+        return dataInfo
         
 
 

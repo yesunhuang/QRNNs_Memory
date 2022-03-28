@@ -9,7 +9,7 @@ Date: 2022-03-27 23:39:16
 '''
 
 #import everything
-from random import random
+import random
 import torch
 
 class SeqDataLoader:
@@ -31,6 +31,7 @@ class SeqDataLoader:
         self.numSteps = numSteps
         self.maskSteps = maskSteps
         self.batchSize = batchSize
+        self.dataSize=0
         if shuffle:
             self.dataIterFn=self.__seq_data_iter_random
         else:
@@ -51,10 +52,11 @@ class SeqDataLoader:
         return: the random sequence data iterator
         '''
         #random offset
-        Xs=self.X[random.randint(0,self.numSteps-1):]
-        Ys=self.Y[random.randint(0,self.numSteps-1):]
+        offset=random.randint(0,self.numSteps)
+        Xs,Ys=self.X[offset:],self.Y[offset:]
         #number of sequences
         numSeqs=len(Xs)//self.numSteps
+        self.dataSize=numSeqs
         #random initial index
         initialIndices=list(range(0,numSeqs*self.numSteps,self.numSteps))
         random.shuffle(initialIndices)
@@ -68,7 +70,7 @@ class SeqDataLoader:
             return: the data
             '''
             if ifMask:
-                Ys[pos:pos+self.maskSteps]=0
+                Ys[pos:pos+self.maskSteps]=[0.0]*self.maskSteps
                 return Ys[pos:pos+self.numSteps]
             return Xs[pos:pos+self.numSteps]
 
@@ -90,9 +92,18 @@ class SeqDataLoader:
         Ys=torch.tensor(self.Y[offset:offset+numData],dtype=torch.float32)
         Xs,Ys=Xs.reshape(self.batchSize,-1),Ys.reshape(self.batchSize,-1)
         numBatches=Xs.shape[1]//self.numSteps
+        self.dataSize=numBatches*self.batchSize
         for i in range(0,self.numSteps*numBatches,self.numSteps):
             XsPerBatch=Xs[:,i:i+self.numSteps]
             YsPerBatch=Ys[:,i:i+self.numSteps]
             YsPerBatch[:,:self.maskSteps]=0
             yield XsPerBatch,YsPerBatch
+        
+    def __len__(self):
+        '''
+        name: __len__
+        function: get the data size
+        return: the data size
+        '''
+        return self.dataSize
 
