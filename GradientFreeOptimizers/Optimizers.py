@@ -12,7 +12,10 @@ import abc
 import torch
 import numpy as np
 from sympy import GoldenRatio
-from GradFreeOptimizer import StandardGradFreeOptimizer
+try:
+    from GradientFreeOptimizers.GradFreeOptimizer import StandardGradFreeOptimizer
+except:
+    from GradFreeOptimizer import StandardGradFreeOptimizer
 
 
 class StandardCostFunc(metaclass=abc.ABCMeta):

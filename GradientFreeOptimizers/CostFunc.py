@@ -10,7 +10,10 @@ Date: 2022-03-19 13:14:16
 ### import everything
 import torch
 import abc
-from Optimizers import StandardCostFunc
+try:
+    from GradientFreeOptimizers.Optimizers import StandardCostFunc
+except:
+    from Optimizers import StandardCostFunc
 from torch import nn
 
 

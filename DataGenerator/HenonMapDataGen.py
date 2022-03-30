@@ -13,7 +13,10 @@ import pandas as pd
 import numpy as np
 import torch
 import os
-from SequenceDataLoader import  SeqDataLoader
+try:
+    from DataGenerator.SequenceDataLoader import  SeqDataLoader
+except:
+    from SequenceDataLoader import  SeqDataLoader
 
 class HenonMapDataGen:
     '''Generate data of modified Henon Map'''
@@ -221,12 +224,3 @@ class HenonMapDataGen:
         dataInfo+='\nData Seed:\n '+str(self.__seed)
         dataInfo+='\n'+'-'*40
         return dataInfo
-        
-
-
-        
-        
-
-
-        
-        

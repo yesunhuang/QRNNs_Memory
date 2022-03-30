@@ -106,4 +106,3 @@ class SeqDataLoader:
         return: the data size
         '''
         return self.dataSize
-
