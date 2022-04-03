@@ -78,7 +78,13 @@ class SeqDataLoader:
             initialIndicesPerBatch=initialIndices[i:i+self.batchSize]
             XsPerBatch=[get_data(j,False) for j in initialIndicesPerBatch]
             YsPerBatch=[get_data(j,True) for j in initialIndicesPerBatch]
-            yield torch.tensor(XsPerBatch,dtype=torch.float32),torch.tensor(YsPerBatch,dtype=torch.float32)
+            XsPerBatch=torch.tensor(XsPerBatch,dtype=torch.float32)
+            YsPerBatch=torch.tensor(YsPerBatch,dtype=torch.float32)
+            if len(XsPerBatch.shape)<3:
+                XsPerBatch=torch.unsqueeze(XsPerBatch,dim=-1)
+            if len(YsPerBatch.shape)<3:
+                YsPerBatch=torch.unsqueeze(YsPerBatch,dim=-1)
+            yield XsPerBatch,YsPerBatch
 
     def __seq_data_iter_sequential(self):
         '''
@@ -97,6 +103,10 @@ class SeqDataLoader:
             XsPerBatch=Xs[:,i:i+self.numSteps]
             YsPerBatch=Ys[:,i:i+self.numSteps]
             YsPerBatch[:,:self.maskSteps]=0
+            if len(XsPerBatch.shape)<3:
+                XsPerBatch=torch.unsqueeze(XsPerBatch,dim=-1)
+            if len(YsPerBatch.shape)<3:
+                YsPerBatch=torch.unsqueeze(YsPerBatch,dim=-1)
             yield XsPerBatch,YsPerBatch
         
     def __len__(self):
