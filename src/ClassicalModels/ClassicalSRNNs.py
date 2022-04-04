@@ -301,8 +301,9 @@ class SuportFunction:
                 else:
                     for s in state:
                         s.detach_()
-            y=Y.T.reshape(-1)
+            y=Y.transpose(0,1).reshape(-1,Y.shape[-1])
             y_hat,state=net(X,state)
+            assert y_hat.shape==y.shape, 'y_hat.shape={}, y.shape={}'.format(y_hat.shape,y.shape)
             l=loss(y_hat,y).mean()
             if isinstance(updater,torch.optim.Optimizer):
                 updater.zero_grad()
@@ -327,6 +328,7 @@ class SuportFunction:
         param {isRandomIter}: whether the iterator is random
         '''
         #sum of testing loss, y number
+        state=None
         metric=hp.Accumulator(2)
         for X,Y in testIter:
             if state is None or isRandomIter:
@@ -337,8 +339,9 @@ class SuportFunction:
                 else:
                     for s in state:
                         s.detach_()
-            y=Y.T.reshape(-1)
+            y=Y.transpose(0,1).reshape(-1,Y.shape[-1])
             y_hat,state=net(X,state)
+            assert y_hat.shape==y.shape, 'y_hat.shape={}, y.shape={}'.format(y_hat.shape,y.shape)
             l=loss(y_hat,y).mean()
             metric.add(l*y.numel(),y.numel())
         return metric[0]/metric[1]
