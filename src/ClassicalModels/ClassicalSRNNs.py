@@ -231,10 +231,13 @@ class SuportFunction:
             return torch.cat(Ys,dim=0),(S,)
         return forward_fn
     
-    def get_predict_fun(self,outputTransoform:Callable=lambda x:x):
+    def get_predict_fun(self,outputTransoform:Callable=lambda x:x,\
+                        interval:int=1):
         '''
         name: get_predict_fun
         fuction: get the function for prediction
+        param{outputTransoform}: the transform function for output
+        param{interval}: the interval of prediction
         return: the function
         '''        
         self.outputTransoform=outputTransoform
@@ -249,10 +252,10 @@ class SuportFunction:
             return: the prediction
             '''
             state=net.begin_state(batch_size=1)
-            outputs=[prefix[0]]
-            get_input=lambda: torch.unsqueeze(outputs[-1],dim=0)
+            outputs=[pre for pre in prefix[0:interval]]
+            get_input=lambda: torch.unsqueeze(outputs[-interval],dim=0)
             #warm-up
-            for Y in prefix[1:]:
+            for Y in prefix[interval:]:
                 _,state=net(get_input(),state)
                 outputs.append(Y)
             for _ in range(numPreds):
