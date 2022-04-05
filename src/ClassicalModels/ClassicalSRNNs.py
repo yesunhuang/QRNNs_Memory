@@ -149,7 +149,7 @@ class SuportFunction:
             constants.append(DeltaInPad)
             #Hidden params
             if 'J' in inactive:
-                J=normal((self.hiddenSize,self.hiddenSize)).detach_()
+                J=rescale*torch.ones((self.hiddenSize,self.hiddenSize)).detach_()
                 constants.append(J)
             else:
                 J=normal((self.hiddenSize,self.hiddenSize)).requires_grad_(True)
@@ -172,7 +172,7 @@ class SuportFunction:
             return (params,constants)
         return get_params
 
-    def get_forward_fn_fun(self,activation:Callable=torch.tanh):
+    def get_forward_fn_fun(self,activation:Callable=torch.tanh,isTypical:bool=True):
         '''
         name: get_forward_fn_fun 
         fuction: get the forward function
@@ -180,6 +180,7 @@ class SuportFunction:
         return: the function
         '''        
         self.activation=activation
+        self.isTypical=isTypical
         def forward_fn(Xs:torch.Tensor,state:tuple,weights:tuple):
             '''
             name: forward_fn
@@ -224,7 +225,10 @@ class SuportFunction:
                 H=-torch.mm(X,torch.cat((WInParam,WInZeroPad),dim=1))\
                 -torch.cat((DeltaInParam,DeltaInPad),dim=0)+torch.mm(S,J)
                 #Calculate S
-                S=self.activation(H)
+                if self.isTypical:
+                    S=self.activation(H)
+                else:
+                    S=self.activation(H*S)
                 #Calculate Y
                 Y=-torch.mm(S,torch.cat((WOutZeroPad,WOutParam),dim=0))+DeltaOutParam
                 Ys.append(Y)
