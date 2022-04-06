@@ -9,9 +9,11 @@ Date: 2022-03-16 19:38:26
 '''
 ### import everything
 import abc
+from typing import Iterable
 import torch
 import numpy as np
 from sympy import GoldenRatio
+from collections.abc import Callable
 try:
     from GradientFreeOptimizers.GradFreeOptimizer import StandardGradFreeOptimizer
 except:
@@ -28,46 +30,37 @@ class StandardCostFunc(metaclass=abc.ABCMeta):
 class MCSOptimizer(StandardGradFreeOptimizer):
     '''A class for implementing MCS'''
 
-    def __init__(self, netWeight:tuple, costFunc:StandardCostFunc, dataIter, **kwargs):
+    def __init__(self, netWeight:tuple, costFunc:StandardCostFunc, dataIter:Iterable,\
+                p_drop:float=0.75,nestNum:int=25,maxLevyStepSize:list=[],\
+                randInit:bool=False,constantStep:bool=False,\
+                epochToGeneration:Callable=lambda x:x):
         '''
         name:__init__ 
         fuction: initialize the optimizer
         param {*netWeight}: a tuple of net Weight
         param {*costFunc}: class of cost function
         param {*dataIter}: iterator of data
-        param {***kargs}:
-            param{*p_drop}: ratio of bad nest that to be dropped
-            param{*nestNum}: number of maximum nests
-            param{*maxGeneration}: maximum of Generation
-            param{*maxLevyStepSize}: Levy step size
-            param{*randomInit}: use randn to initialize
-            param{*constantStep}: use constant levy step
+        param{*p_drop}: ratio of bad nest that to be dropped
+        param{*nestNum}: number of maximum nests
+        param{*maxLevyStepSize}: Levy step size
+        param{*randomInit}: use randn to initialize
+        param{*constantStep}: use constant levy step
+        param{*epochToGeneration}: epoch to generation
         return {*MCS_optimizer}
         '''     
         self.costFunc=costFunc
         self.netWeight=netWeight
         self.dataIter=dataIter
-        if 'p_drop' in kwargs:
-            self.p_drop=kwargs['p_drop']
-        else:
-            self.p_drop=0.75
-        if 'nestNum' in kwargs:
-            self.nestNum=kwargs['nestNum']
-        else:
-            self.nestNum=25
-        if 'maxLevyStepSize' in kwargs:
-            self.maxLevyStepSize=torch.tensor(kwargs['maxLevyStepSize'])
-        else:
+        self.p_drop=p_drop
+        self.nestNum=nestNum
+        if len(maxLevyStepSize)==0:
             self.maxLevyStepSize=torch.ones(len(netWeight))
-        if 'randomInit' in kwargs:
-            self.randInit=kwargs['randomInit']
         else:
-            self.randInit=False
-        if 'constantStep' in kwargs:
-            self.constantStep=kwargs['constantStep']
-        else:
-            self.constantStep=False
-        self.currentGeneration=0
+            self.maxLevyStepSize=torch.tensor(maxLevyStepSize)
+        self.randInit=randInit
+        self.constantStep=constantStep
+        self.epochToGeneration=epochToGeneration
+        self.currentEpoch=0
         self.__initialize()
 
     @torch.no_grad()
@@ -120,19 +113,15 @@ class MCSOptimizer(StandardGradFreeOptimizer):
                 self.nestIndexAndCost.append([i,cost])
     
     @torch.no_grad()
-    def step(self,**kwarg):
+    def step(self,isNaive:bool=True):
         '''
         name: step
         fuction: update the nests
-        param {***kwarg}:
-            param{*isNaive}: whether using naive LevyFlight.
+        param{*isNaive}: whether using naive LevyFlight.
         return {*loss}
         '''     
-        if 'isNaive' in kwarg:
-            isNaive=kwarg['isNaive']
-        else:
-            isNaive=True
-        self.currentGeneration+=1
+        self.currentEpoch+=1
+        self.currentGeneration=self.epochToGeneration(self.currentEpoch)
         #calculate current levy step
         if not self.constantStep:
             currentLevyStep=self.maxLevyStepSize/np.sqrt(self.currentGeneration)

@@ -9,6 +9,8 @@ Date: 2022-03-28 21:49:20
 '''
 
 #import everything
+from typing import Tuple
+from pytest import param
 import torch
 from torch import nn
 from collections.abc import Callable
@@ -23,8 +25,8 @@ class ClassicalSRNN(StandardSNN):
                 get_params:Callable=None,init_state:Callable=None, forward_fn:Callable=None):
         '''
         name: __init__ 
-        fuction: initialize the class for classical SRNN
-        param {inpoutSize}: the size of input
+        function: initialize the class for classical SRNN
+        param {inputSize}: the size of input
         param {hiddenSize}: the size of hidden units
         param {outputSize}: the size of output
         param {getParams}: the function to get parameters
@@ -50,10 +52,13 @@ class ClassicalSRNN(StandardSNN):
         name: call_with_weight
         function: call the class with weight
         param {X}: the input
-        param {weight}: the params and state (param,state)
+        param {weight}: the params and state weight:(self.params)
         return: the output
         '''
-        return self.forward_fn(X.transpose(0,1),weight[1],weight[0])
+        Y,_=self.forward_fn(X.transpose(0,1),\
+            self.begin_state(X.shape[0]),(weight,self.constants))
+        Y=Y.reshape((-1,X.shape[0],Y.shape[-1])).transpose(0,1)
+        return Y
     
     def begin_state(self,batch_size:int=1):
         '''
@@ -191,6 +196,9 @@ class SuportFunction:
             return: the output, the new state
             '''
             params,constants=weights
+            if isinstance(params,Tuple):
+                params=list(params)
+                constants=list(constants)
             params,constants=params.copy(),constants.copy()
             #Input params
             if 'WeightInput' in self.inactive:
