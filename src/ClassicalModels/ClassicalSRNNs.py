@@ -112,6 +112,7 @@ class SuportFunction:
         '''
         self.rescale=rescale
         self.inactive=inactive
+        
         def normal(shape):
             '''
             name: normal

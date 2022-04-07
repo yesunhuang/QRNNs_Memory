@@ -9,8 +9,13 @@ Date: 2022-04-06 10:18:00
 '''
 
 #import everything
+from codecs import EncodedFile
+from email.policy import default
+from turtle import forward
+from typing import Dict, Tuple
+from numpy import fliplr
 import torch
-from torch import nn
+from torch import nn, pi
 from collections.abc import Callable
 import qutip as qt
 #modify path
@@ -44,7 +49,7 @@ class QuantumSRNN(StandardSNN):
         param {state}: the state
         return: the output
         '''
-        return self.forward_fn(X,state,(self.params,self.constants))
+        return self.forward_fn(X.transpose(0,1),state,(self.params,self.constants))
     
     def call_with_weight(self, X: torch.Tensor, weight: tuple):
         '''
@@ -54,7 +59,10 @@ class QuantumSRNN(StandardSNN):
         param {weight}: the weight
         return: the output
         '''
-        return self.forward_fn(X.transpose(0,1),self.begin_state(X.shape[0]),(weight,self.constants))
+        Y,_=self.forward_fn(X.transpose(0,1),\
+            self.begin_state(X.shape[0]),(weight,self.constants))
+        Y=Y.reshape((-1,X.shape[0],Y.shape[-1])).transpose(0,1)
+        return Y
 
     def begin_state(self,batch_size:int=1):
         '''
@@ -64,3 +72,242 @@ class QuantumSRNN(StandardSNN):
         return: the state
         '''
         return self.init_state(batch_size,self.qubits)
+
+class QuantumSystemFunction:
+    '''The functions depicting the used quantum system'''
+
+    def __init__(self):
+        '''
+        name:__init__
+        function: initialize the class for quantum system function
+        '''
+    
+    def get_init_state_fun(self,activation:list=[],isDensity:bool=False):
+        '''
+        name: 
+        fuction: 
+        param {activation}: a list describe the pattern of activation
+        param {isDensity}: whether the state is density matrix  
+        return: the init_state function
+        '''        
+        self.activation=activation
+
+        def init_state(batch_size:int, qubits:int):
+            '''
+            name:init_state
+            function: initialize the state
+            param {batch_size}: the batch size
+            param {qubits}: the number of qubits
+            return: the state
+            '''
+            state=[]
+            for i in range(0,qubits):
+                if i in self.activation:
+                    if isDensity:
+                        state.append(qt.fock_dm(2,1))
+                    else:
+                        state.append(qt.basis(2,1))
+                else:
+                    if isDensity:
+                        state.append(qt.fock_dm(2,0))
+                    else:
+                        state.append(qt.basis(2,0))
+            state=qt.tensor(state)
+            S=[state.copy() for _ in range(batch_size)]
+            return (S,)
+        return init_state
+
+    def get_get_params_fun(self, inputQubits:list=[],outputQubits:list=[],\
+                        interQPairs:list=[],inactive:list=[],\
+                        rescale:dict={}):
+        '''
+        name:get_get_params_fun
+        function: get the get_params function
+        param {inputQubits}: the input qubits
+        param {outputQubits}: the output qubits
+        param {interQPairs}: the interaction qubit pairs
+        param {rescale}: the rescale the initial parameters
+        param {inactive}: the inactive params
+        'WIn','DeltaIn','J',''WOut','DeltaOut'
+        return: the get_params function
+        '''
+        self.inputQubits,self.outputQubits=inputQubits,outputQubits
+        self.interQPairs,self.rescale,self.inactive=interQPairs,rescale,inactive
+        defaultRescale={'WIn':0.01,'DeltaIn':0,'J':torch.tensor([0.01]),'WOut':0.01,'DeltaOut':0}
+        for key in rescale.keys():
+            if key not in defaultRescale.keys():
+                raise ValueError('The rescale key is not in the default rescale')
+            defaultRescale[key]=rescale[key]
+        self.rescale=defaultRescale
+
+        def normal(shape,scale:float=1.0):
+            '''
+            name: normal
+            function: get the normal distribution
+            param {shape}: the shape of the distribution
+            param {rescale}: the rescale of the distribution
+            return: the distribution
+            '''
+            return torch.randn(size=shape)*scale
+
+        def get_params(inputSize:int,qubits:int,outputSize:int):
+            '''
+            name:get_params
+            function: get the parameters
+            param {inputSize}: the size of input
+            param {qubits}: the number of qubits
+            param {outputSize}: the size of output
+            return: the parameters
+            '''
+            params=[]
+            constants=[]
+            assert len(inputQubits)<=qubits, 'Too many input qubits'
+            assert len(outputQubits)<=qubits, 'Too many output qubits'
+            self.inputSize,self.qubits,self.outputSize=inputSize,qubits,outputSize
+            #Input params
+            if 'WIn' in self.inactive:
+                WIn=rescale['WIn']*torch.ones((inputSize,len(self.inputQubits))).detach_()
+                constants.append(WIn)
+            else:
+                WIn=normal((inputSize,len(self.inputQubits)),rescale['WIn']).requires_grad_(True)
+                params.append(WIn)
+            if 'DeltaIn' in self.inactive:
+                DeltaInParam=rescale['DeltaIn']*torch.ones((inputSize,len(self.inputQubits))).detach_()
+                constants.append(DeltaInParam)
+            else:
+                DeltaInParam=normal((inputSize,len(self.inputQubits)),rescale['DeltaIn']).requires_grad_(True)
+                params.append(DeltaInParam)
+            DeltaInPad=rescale['DeltaIn']*torch.ones((inputSize,qubits-len(self.inputQubits))).detach_()
+            constants.append(DeltaInPad)
+            #Interaction params
+            if 'J' in self.inactive:
+                J=rescale['J']*torch.ones((len(self.interQPairs),)).detach_()
+                constants.append(J)
+            else:
+                J=normal((len(self.interQPairs),),rescale['J']).requires_grad_(True)
+                params.append(J)
+            #Output params
+            if 'WOut' in self.inactive:
+                WOut=rescale['WOut']*torch.ones((len(self.outputQubits),outputSize)).detach_()
+                constants.append(WOut)
+            else:
+                WOut=normal((len(self.outputQubits),outputSize),rescale['WOut']).requires_grad_(True)
+                params.append(WOut)
+            if 'DeltaOut' in self.inactive:
+                DeltaOutParam=rescale['DeltaOut']*torch.ones((len(self.outputQubits),outputSize)).detach_()
+                constants.append(DeltaOutParam)
+            else:
+                DeltaOutParam=normal((len(self.outputQubits),outputSize),rescale['DeltaOut']).requires_grad_(True)
+                params.append(DeltaOutParam)
+            return (params,constants)
+        return get_params    
+
+    def get_forward_fn_fun(self,sysConstants:dict,samples:int=None,measEffect:bool=False):
+        '''
+        name:get_forward_fn_fun
+        function: get the forward function
+        param {sysConstants}: the system constants
+        param {samples}: the number of samples
+        param {measEffect}: whether the measurement effect is included
+        return: the forward function
+        '''
+        self.samples,self.measEffect=samples,measEffect
+
+        def build_int_operators(J:torch.Tensor):
+            '''
+            name:build_int_operators
+            function: build the interaction operators
+            param {J}: the interaction strength
+            return: the interaction operators
+            '''
+            #TODO: build the interaction operators
+            pass
+
+        def encode_input(x:torch.Tensor,inputParams:Tuple):
+            '''
+            name: encodeInput
+            function: encode the input
+            param {x}: the input
+            param {inputParams}: the input parameters
+            return: the encoded input
+            '''
+            #TODO: encode the input into Hamiltonian and dissipation
+            pass
+
+        def evolve(S:list,evolParam:Tuple):
+            '''
+            name: evolve
+            function: evolve the state
+            param {S}: the state
+            param {evolParam}: the evolution parameters
+            return: the evolved state
+            '''
+            #TODO: evolve the state
+            pass
+
+        def measure(S:list):
+            '''
+            name: measure
+            function: measure the state
+            param {S}: the state
+            return: the measured state
+            '''
+            #TODO: measure the state
+            pass
+        
+        def forward_fn(Xs:torch.tensor,state:tuple,weights:tuple):
+            '''
+            name:forward_fn
+            function: the forward function
+            param {Xs}: the input
+            param {state}: the state
+            param {weights}: the weights
+            return: the output
+            '''
+            params,constants=weights
+            if isinstance(params,Tuple):
+                params=list(params)
+                constants=list(constants)
+            params,constants=params.copy(),constants.copy()
+            #Input params
+            if 'WIn' in self.inactive:
+                WIn=constants.pop(0)
+            else:
+                WIn=params.pop(0)
+            if 'DeltaIn' in self.inactive:
+                DeltaInParam=constants.pop(0)
+            else:
+                DeltaInParam=params.pop(0)
+            DeltaInPad=constants.pop(0)
+            inputParams=(WIn,DeltaInParam,DeltaInPad)
+            #Interaction params
+            if 'J' in self.inactive:
+                J=constants.pop(0)
+            else:
+                J=params.pop(0)
+            #Output params
+            if 'WOut' in self.inactive:
+                WOut=constants.pop(0)
+            else:
+                WOut=params.pop(0)
+            if 'DeltaOut' in self.inactive:
+                DeltaOutParam=constants.pop(0)
+            else:
+                DeltaOutParam=params.pop(0)
+            S,=state
+            Ys=[]
+            H_I,Co_ps=build_int_operators(J)
+            for X in Xs:
+                H_input=encode_input(X,inputParams)
+                H=H_input+H_I
+                S=evolve(S,H,Co_ps)
+                S,measResult=measure(S)
+                Y=torch.mm(WOut,measResult)+DeltaOutParam
+                Ys.append(Y)
+            return torch.cat(Ys,dim=0),(S,)
+        return forward_fn
+
+
+
+        
+            
