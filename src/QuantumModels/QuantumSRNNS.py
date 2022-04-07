@@ -9,6 +9,7 @@ Date: 2022-04-06 10:18:00
 '''
 
 #import everything
+from re import X
 from sqlalchemy import case
 import torch
 from torch import nn, pi
@@ -263,18 +264,33 @@ class QuantumSystemFunction:
                 H_I.append([J[i],sigma])
             return H_I,C_ops
 
-        def encode_input(x:torch.Tensor,inputParams:tuple):
+        def encode_input(xBatch:torch.Tensor,inputParams:tuple,qubits:int):
             '''
             name: encodeInput
             function: encode the input
-            param {x}: the input
+            param {xBatch}: the input
             param {inputParams}: the input parameters
             return: the encoded input
             '''
-            #TODO: encode the input into Hamiltonian and dissipation
-            pass
+            H_input=[]
+            WIn,DeltaIn,DeltaInPad=inputParams
+            DeltaEncoded=torch.mm(xBatch,WIn)+DeltaIn
+            sigmazList=[]
+            for i in range(0,qubits):
+                pauliBasis=['i']*qubits
+                pauliBasis[i]='z'
+                sigmazList.append(multi_qubits_sigma(pauliBasis))
+            for delta in DeltaEncoded:
+                H=[]
+                for i in range(0,qubits):
+                    if i in self.inputQubits:
+                        H.append([delta[i],sigmazList[i].copy()])
+                    else:
+                        H.append([self.rescale['DeltaIn'],sigmazList[i].copy()])
+                H_input.append(H.copy())
+            return H_input
 
-        def evolve(S:list,evolParam:tuple):
+        def evolve(S:list,H:tuple,Co_ps:list):
             '''
             name: evolve
             function: evolve the state
@@ -339,9 +355,8 @@ class QuantumSystemFunction:
             Ys=[]
             H_I,Co_ps=build_int_operators(J,qubits)
             for X in Xs:
-                H_input=encode_input(X,inputParams)
-                H=H_input+H_I
-                S=evolve(S,H,Co_ps)
+                H_input=encode_input(X,inputParams,qubits)
+                S=evolve(S,(H_I,H_input),Co_ps)
                 S,measResult=measure(S)
                 Y=torch.mm(WOut,measResult)+DeltaOutParam
                 Ys.append(Y)
