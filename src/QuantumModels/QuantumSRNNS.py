@@ -175,7 +175,7 @@ class QuantumSystemFunction:
             else:
                 DeltaInParam=rescale['DeltaIn']*torch.ones(len(self.inputQubits)).requires_grad_(True)
                 params.append(DeltaInParam)
-            DeltaInPad=rescale['DeltaIn']*torch.ones(qubits-len(self.inputQubits)).detach_()
+            DeltaInPad=[qubits,rescale['DeltaIn']]
             constants.append(DeltaInPad)
             #Interaction params
             if 'J' in self.inactive:
@@ -284,9 +284,9 @@ class QuantumSystemFunction:
                 H=[]
                 for i in range(0,qubits):
                     if i in self.inputQubits:
-                        H.append([delta[i],sigmazList[i].copy()])
+                        H.append([delta[i].item(),sigmazList[i].copy()])
                     else:
-                        H.append([self.rescale['DeltaIn'],sigmazList[i].copy()])
+                        H.append([DeltaInPad[1],sigmazList[i].copy()])
                 H_input.append(H.copy())
             return H_input
 
@@ -335,7 +335,7 @@ class QuantumSystemFunction:
             else:
                 DeltaInParam=params.pop(0)
             DeltaInPad=constants.pop(0)
-            qubits=DeltaInPad.shape[0]+DeltaInParam[0]
+            qubits=DeltaInPad[0]
             inputParams=(WIn,DeltaInParam,DeltaInPad)
             #Interaction params
             if 'J' in self.inactive:
