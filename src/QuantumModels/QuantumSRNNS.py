@@ -109,7 +109,10 @@ class QuantumSystemFunction:
                     else:
                         state.append(qt.basis(2,0))
             state=qt.tensor(state)
-            S=[state.copy() for _ in range(batch_size)]
+            if self.samples==None:
+                S=[state.copy() for _ in range(batch_size)]
+            else:
+                S=[[state.copy() for _ in range(self.samples)] for _ in range(self.samples)]
             return (S,)
         return init_state
 
@@ -288,7 +291,7 @@ class QuantumSystemFunction:
                 H_input.append(H.copy())
             return H_input
 
-        def evolve(S:list,H:tuple,Co_ps:list):
+        def evolve(S:tuple,H:tuple,Co_ps:list):
             '''
             name: evolve
             function: evolve the state
@@ -296,10 +299,42 @@ class QuantumSystemFunction:
             param {evolParam}: the evolution parameters
             return: the evolved state
             '''
-            #TODO: evolve the state
-            pass
+            def densityMesolve(value:tuple):
+                '''
+                name: densityMesolve
+                function: evolve the system via mesolve
+                param {S}:the initial state
+                return: the evolved state
+                '''
+                Hs,rho0=value
+                tlist=np.linspace(0,self.sysConstants['tau'],self.sysConstants['steps'])
+                finalState=qt.mesolve(rho0,Hs,Co_ps,tlist,options=self.sysConstants['options']).states[-1]
+                return finalState
+            
+            def stateMcsolve(value:tuple):
+                '''
+                name: stateMcsolve
+                function: evolve the system via mcsolve
+                param {S}:the initial state
+                return: the evolved state
+                '''
+                Hs,rho0=value
+                tlist=np.linspace(0,self.sysConstants['tau'],self.sysConstants['steps'])
+                singleMc=lambda sampleState:qt.mcsolve(sampleState,Hs,Co_ps,tlist,ntraj=1,\
+                    options=self.sysConstants['options'],progress_bar=False).states[-1]
+                finalState=qt.parallel_map(singleMc,rho0)
+                return finalState
 
-        def measure(S:list):
+            state,=S
+            H_I,H_input=H
+            value=[(singleH+H_I,singleState) for singleH,singleState in zip(H_input,state)]
+            if self.samples==None:
+                result=qt.parallel_map(densityMesolve,value)
+            else:
+                result=qt.parallel_map(stateMcsolve,value)
+            return (result,)
+
+        def measure(S:tuple):
             '''
             name: measure
             function: measure the state
