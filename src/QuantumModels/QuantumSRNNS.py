@@ -10,13 +10,13 @@ Date: 2022-04-06 10:18:00
 
 #import everything
 import torch
-from torch import nn, pi
+from torch import pi
 from collections.abc import Callable
 import numpy as np
 import qutip as qt
+import qutip.measurement as qtm
 #modify path
 from GradientFreeOptimizers.CostFunc import StandardSNN
-import GradientFreeOptimizers.Helpers as hp
 
 class QuantumSRNN(StandardSNN):
     '''implement the quantum sRNN'''
@@ -126,6 +126,7 @@ class QuantumSystemFunction:
         param {outputQubits}: the output qubits
         param {interQPairs}: the interaction qubit pairs
         param {rescale}: the rescale the initial parameters
+            {'WIn':0.01,'DeltaIn':0,'J':torch.tensor([0.01]),'WOut':0.01,'DeltaOut':0}
         param {inactive}: the inactive params
         'WIn','DeltaIn','J',''WOut','DeltaOut'
         return: the get_params function
@@ -201,17 +202,34 @@ class QuantumSystemFunction:
             return (params,constants)
         return get_params    
 
-    def get_forward_fn_fun(self,sysConstants:dict,samples:int=None,measEffect:bool=False):
+    def get_forward_fn_fun(self,sysConstants:dict={},samples:int=None,measEffect:bool=False):
         '''
         name:get_forward_fn_fun
         function: get the forward function
         param {sysConstants}: the system constants
+            {'measureQuantity':'z',
+                            'Dissipation':'0.0',
+                            'Omega':1.0,
+                            'tau':1.51*pi,
+                            'steps':10,
+                            'options':qt.Options()}
         param {samples}: the number of samples
         param {measEffect}: whether the measurement effect is included
         return: the forward function
         '''
         self.samples,self.measEffect=samples,measEffect
-        self.sysConstants=sysConstants
+        self.measOperators=build_measure_operators()
+        defaultSysConstants={'measureQuantity':'z',\
+                            'Dissipation':'0.0',\
+                            'Omega':1.0,\
+                            'tau':1.51*pi,\
+                            'steps':10,\
+                            'options':qt.Options()}
+        for key in sysConstants.keys():
+            if key not in defaultSysConstants.keys():
+                raise ValueError('The sysConstants key is not in the default sysConstants')
+            defaultSysConstants[key]=sysConstants[key]
+        self.sysConstants=defaultSysConstants
 
         def multi_qubits_sigma(pauliBasis:list=['i']):
             '''
@@ -235,6 +253,20 @@ class QuantumSystemFunction:
                 if pauliBasis[i]=='+':
                     sigma.append(qt.sigmap())
             return qt.tensor(sigma)
+        
+        def build_measure_operators(qubits:int):
+            '''
+            name:build_measure_operators
+            function: build the measure operators
+            return: the measure operators
+            '''
+            measureOperators=[]
+            M=self.sysConstants['measureQuantity']
+            pauliBasis=['i']*qubits
+            for i in range(0,self.outputQubits):
+                pauliBasis[i]=M
+                measureOperators.append(multi_qubits_sigma(pauliBasis))
+            return measureOperators
 
         def build_int_operators(J:torch.Tensor,qubits:int):
             '''
@@ -315,7 +347,7 @@ class QuantumSystemFunction:
                 '''
                 name: stateMcsolve
                 function: evolve the system via mcsolve
-                param {S}:the initial state
+                param {value}:(single Hamiltonian,the initial state)
                 return: the evolved state
                 '''
                 Hs,rho0=value
@@ -334,15 +366,65 @@ class QuantumSystemFunction:
                 result=qt.parallel_map(stateMcsolve,value)
             return (result,)
 
-        def measure(S:tuple):
+        def measure(S:tuple,qubits:int):
             '''
             name: measure
             function: measure the state
             param {S}: the state
-            return: the measured state
+            return: (the measured state,the measured result)
             '''
-            #TODO: measure the state
-            pass
+
+            def densityMeasure(state:qt.Qobj):
+                '''
+                name: densityMeasure
+                function: measure the system via mesolve
+                param {value}:the initial state
+                return: the measured state,the measured result
+                '''
+                measResult=[]
+                for measOp in self.measOperators:
+                    measResult.append(qt.expect(measOp,state))
+                if not self.measEffect:
+                    return state,measResult
+                else:
+                    newState=None    
+                    for measOp in self.measOperators:
+                        _,projectors,probabilities=qtm.measure_observable(state,measOp)
+                        for proj,prob in zip(projectors,probabilities):
+                            if newState==None:
+                                newState=proj*state*proj.dag()*prob
+                            else:
+                                newState=newState+proj*prob
+                    return [newState,measResult]
+            def stateMeasure(state:list):
+                '''
+                name: stateMeasure
+                function: measure the system via mcsolve
+                param {value}:the initial state
+                return: the measured state,the measured result
+                '''
+                measResult=[0.0]*len(self.measOperators)
+                for i in range(len(self.measOperators)):
+                    for j in range(len(state)):
+                        if self.measEffect:
+                            measValue,state[j]=qtm.measure_state(state[j],self.measOperators[i])
+                        else:
+                            measValue,_=qtm.measure_state(state[j],self.measOperators[i])
+                        measResult[i]=measResult[i]+measValue
+                return state,[value/len(state) for value in measResult]
+
+            stateBatch,=S
+            if self.samples==None:
+                result=qt.parallel_map(densityMeasure,stateBatch)
+                measState=(result[:,0],)
+                measResult=result[:,1]
+                return measState,torch.tensor(measResult)
+            else:
+                result=qt.parallel_map(stateMeasure,stateBatch)
+                measState=(result[:,0],)
+                measResult=result[:,1]
+                return measState,torch.tensor(measResult)
+
         
         def forward_fn(Xs:torch.tensor,state:tuple,weights:tuple):
             '''
@@ -396,7 +478,36 @@ class QuantumSystemFunction:
             return torch.cat(Ys,dim=0),(S,)
         return forward_fn
 
-
-
-        
-            
+    def get_predict_fun(self,outputTransoform:Callable=lambda x:x,\
+                        interval:int=1):
+        '''
+        name: get_predict_fun
+        fuction: get the function for prediction
+        param{outputTransoform}: the transform function for output
+        param{interval}: the interval of prediction
+        return: the function
+        '''        
+        self.outputTransoform=outputTransoform
+        @torch.no_grad()
+        def predict_fun(prefix:torch.Tensor,net:StandardSNN,numPreds:int=1):
+            '''
+            name: predict_fun
+            function: predict the next numPreds
+            param {prefix}: the prefix
+            param {numPreds}: the number of prediction
+            param {net}: the network
+            return: the prediction
+            '''
+            state=net.begin_state(batch_size=1)
+            outputs=[pre for pre in prefix[0:interval]]
+            get_input=lambda: torch.unsqueeze(outputs[-interval],dim=0)
+            #warm-up
+            for Y in prefix[interval:]:
+                _,state=net(get_input(),state)
+                outputs.append(Y)
+            for _ in range(numPreds):
+                Y,state=net(get_input(),state)
+                outputs.append(Y)
+            return self.outputTransoform(outputs)
+        return predict_fun
+          
