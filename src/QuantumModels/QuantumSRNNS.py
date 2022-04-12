@@ -224,6 +224,7 @@ class QuantumSystemFunction:
                             'Omega':1.0,\
                             'tau':1.51*pi,\
                             'steps':10,\
+                            'numCpus':1,\
                             'options':qt.Options()}
         for key in sysConstants.keys():
             if key not in defaultSysConstants.keys():
@@ -331,7 +332,7 @@ class QuantumSystemFunction:
             param {evolParam}: the evolution parameters
             return: the evolved state
             '''
-            def densityMesolve(value:tuple):
+            def density_mesolve(value:tuple):
                 '''
                 name: densityMesolve
                 function: evolve the system via mesolve
@@ -343,27 +344,35 @@ class QuantumSystemFunction:
                 finalState=qt.mesolve(rho0,Hs,Co_ps,tlist,options=self.sysConstants['options']).states[-1]
                 return finalState
             
-            def stateMcsolve(value:tuple):
+            def state_mcsolve(value:tuple):
                 '''
                 name: stateMcsolve
                 function: evolve the system via mcsolve
                 param {value}:(single Hamiltonian,the initial state)
                 return: the evolved state
                 '''
-                Hs,rho0=value
-                tlist=np.linspace(0,self.sysConstants['tau'],self.sysConstants['steps'])
-                singleMc=lambda sampleState:qt.mcsolve(sampleState,Hs,Co_ps,tlist,ntraj=1,\
+                def single_mc(sampleState):
+                    return qt.mcsolve(sampleState,Hs,Co_ps,tlist,ntraj=1,\
                     options=self.sysConstants['options'],progress_bar=False).states[-1]
-                finalState=qt.parallel_map(singleMc,rho0)
+                Hs,rho0s=value
+                tlist=np.linspace(0,self.sysConstants['tau'],self.sysConstants['steps'])
+                finalState=[single_mc(rho0) for rho0 in rho0s]
+                #finalState=qt.parallel_map(single_mc,rho0s)
                 return finalState
 
             state,=S
             H_I,H_input=H
-            value=[(singleH+H_I,singleState) for singleH,singleState in zip(H_input,state)]
+            values=[(singleH+H_I,singleState) for singleH,singleState in zip(H_input,state)]
             if self.samples==None:
-                result=qt.parallel_map(densityMesolve,value)
+                if self.sysConstants['numCpus']==1:
+                    result=[density_mesolve(value) for value in values]
+                else:
+                    result=qt.parallel_map(density_mesolve,values,num_cpus=self.sysConstants['numCpus'])
             else:
-                result=qt.parallel_map(stateMcsolve,value)
+                if self.sysConstants['numCpus']==1:
+                    result=[state_mcsolve(value) for value in values]
+                else:
+                    result=qt.parallel_map(state_mcsolve,values,num_cpus=self.sysConstants['numCpus'])
             return (result,)
 
         def measure(S:tuple,qubits:int):
@@ -374,7 +383,7 @@ class QuantumSystemFunction:
             return: (the measured state,the measured result)
             '''
 
-            def densityMeasure(state:qt.Qobj):
+            def density_measure(state:qt.Qobj):
                 '''
                 name: densityMeasure
                 function: measure the system via mesolve
@@ -396,7 +405,7 @@ class QuantumSystemFunction:
                             else:
                                 newState=newState+proj*prob
                     return [newState,measResult]
-            def stateMeasure(state:list):
+            def state_measure(state:list):
                 '''
                 name: stateMeasure
                 function: measure the system via mcsolve
@@ -415,12 +424,18 @@ class QuantumSystemFunction:
 
             stateBatch,=S
             if self.samples==None:
-                result=qt.parallel_map(densityMeasure,stateBatch)
+                if self.sysConstants['numCpus']==1:
+                    result=[density_measure(singleState) for singleState in stateBatch]
+                else:
+                    result=qt.parallel_map(density_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
                 measState=(result[:,0],)
                 measResult=result[:,1]
                 return measState,torch.tensor(measResult)
             else:
-                result=qt.parallel_map(stateMeasure,stateBatch)
+                if self.sysConstants['numCpus']==1:
+                    result=[state_measure(singleState) for singleState in stateBatch]
+                else:
+                    result=qt.parallel_map(state_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
                 measState=(result[:,0],)
                 measResult=result[:,1]
                 return measState,torch.tensor(measResult)
