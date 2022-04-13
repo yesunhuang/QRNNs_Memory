@@ -78,7 +78,7 @@ class QuantumSystemFunction:
         function: initialize the class for quantum system function
         '''
     
-    def get_init_state_fun(self,activation:list=[],isDensity:bool=False):
+    def get_init_state_fun(self,activation:list=[],isDensity:bool=True):
         '''
         name: 
         fuction: 
@@ -87,6 +87,7 @@ class QuantumSystemFunction:
         return: the init_state function
         '''        
         self.activation=activation
+        self.isDensity=isDensity
 
         def init_state(batch_size:int, qubits:int):
             '''
@@ -99,17 +100,17 @@ class QuantumSystemFunction:
             state=[]
             for i in range(0,qubits):
                 if i in self.activation:
-                    if isDensity:
+                    if self.isDensity:
                         state.append(qt.fock_dm(2,1))
                     else:
                         state.append(qt.basis(2,1))
                 else:
-                    if isDensity:
+                    if self.isDensity:
                         state.append(qt.fock_dm(2,0))
                     else:
                         state.append(qt.basis(2,0))
             state=qt.tensor(state)
-            if self.samples==None:
+            if self.isDensity==True:
                 S=[state.copy() for _ in range(batch_size)]
             else:
                 S=[[state.copy() for _ in range(self.samples)] for _ in range(self.samples)]
@@ -132,7 +133,7 @@ class QuantumSystemFunction:
         return: the get_params function
         '''
         self.inputQubits,self.outputQubits=inputQubits,outputQubits
-        self.interQPairs,self.rescale,self.inactive=interQPairs,rescale,inactive
+        self.interQPairs,self.inactive=interQPairs,inactive
         defaultRescale={'WIn':0.01,'DeltaIn':0,'J':torch.tensor([0.01]),'WOut':0.01,'DeltaOut':0}
         for key in rescale.keys():
             if key not in defaultRescale.keys():
@@ -145,7 +146,7 @@ class QuantumSystemFunction:
             name: normal
             function: get the normal distribution
             param {shape}: the shape of the distribution
-            param {rescale}: the rescale of the distribution
+            param {scale}: the rescale of the distribution
             return: the distribution
             '''
             return torch.randn(size=shape)*scale
@@ -166,43 +167,43 @@ class QuantumSystemFunction:
             self.inputSize,self.qubits,self.outputSize=inputSize,qubits,outputSize
             #Input params
             if 'WIn' in self.inactive:
-                WIn=rescale['WIn']*torch.ones((inputSize,len(self.inputQubits))).detach_()
+                WIn=self.rescale['WIn']*torch.ones((inputSize,len(self.inputQubits))).detach_()
                 constants.append(WIn)
             else:
-                WIn=normal((inputSize,len(self.inputQubits)),rescale['WIn']).requires_grad_(True)
+                WIn=normal((inputSize,len(self.inputQubits)),self.rescale['WIn']).requires_grad_(True)
                 params.append(WIn)
             if 'DeltaIn' in self.inactive:
-                DeltaInParam=rescale['DeltaIn']*torch.ones(len(self.inputQubits)).detach_()
+                DeltaInParam=self.rescale['DeltaIn']*torch.ones(len(self.inputQubits)).detach_()
                 constants.append(DeltaInParam)
             else:
-                DeltaInParam=rescale['DeltaIn']*torch.ones(len(self.inputQubits)).requires_grad_(True)
+                DeltaInParam=self.rescale['DeltaIn']*torch.ones(len(self.inputQubits)).requires_grad_(True)
                 params.append(DeltaInParam)
-            DeltaInPad=[qubits,rescale['DeltaIn']]
+            DeltaInPad=[qubits,self.rescale['DeltaIn']]
             constants.append(DeltaInPad)
             #Interaction params
             if 'J' in self.inactive:
-                J=rescale['J']*torch.ones((len(self.interQPairs),)).detach_()
+                J=self.rescale['J']*torch.ones((len(self.interQPairs),)).detach_()
                 constants.append(J)
             else:
-                J=normal((len(self.interQPairs),),rescale['J']).requires_grad_(True)
+                J=normal((len(self.interQPairs),),self.rescale['J']).requires_grad_(True)
                 params.append(J)
             #Output params
             if 'WOut' in self.inactive:
-                WOut=rescale['WOut']*torch.ones((len(self.outputQubits),outputSize)).detach_()
+                WOut=self.rescale['WOut']*torch.ones((len(self.outputQubits),outputSize)).detach_()
                 constants.append(WOut)
             else:
-                WOut=normal((len(self.outputQubits),outputSize),rescale['WOut']).requires_grad_(True)
+                WOut=normal((len(self.outputQubits),outputSize),self.rescale['WOut']).requires_grad_(True)
                 params.append(WOut)
             if 'DeltaOut' in self.inactive:
-                DeltaOutParam=rescale['DeltaOut']*torch.ones((len(self.outputQubits),outputSize)).detach_()
+                DeltaOutParam=self.rescale['DeltaOut']*torch.ones((len(self.outputQubits),outputSize)).detach_()
                 constants.append(DeltaOutParam)
             else:
-                DeltaOutParam=normal((len(self.outputQubits),outputSize),rescale['DeltaOut']).requires_grad_(True)
+                DeltaOutParam=normal((len(self.outputQubits),outputSize),self.rescale['DeltaOut']).requires_grad_(True)
                 params.append(DeltaOutParam)
             return (params,constants)
         return get_params    
 
-    def get_forward_fn_fun(self,sysConstants:dict={},samples:int=None,measEffect:bool=False):
+    def get_forward_fn_fun(self,sysConstants:dict={},samples:int=1,measEffect:bool=False):
         '''
         name:get_forward_fn_fun
         function: get the forward function
@@ -218,7 +219,7 @@ class QuantumSystemFunction:
         return: the forward function
         '''
         self.samples,self.measEffect=samples,measEffect
-        self.measOperators=build_measure_operators()
+        self.measOperators=None
         defaultSysConstants={'measureQuantity':'z',\
                             'Dissipation':'0.0',\
                             'Omega':1.0,\
@@ -363,7 +364,7 @@ class QuantumSystemFunction:
             state,=S
             H_I,H_input=H
             values=[(singleH+H_I,singleState) for singleH,singleState in zip(H_input,state)]
-            if self.samples==None:
+            if self.isDensity==True:
                 if self.sysConstants['numCpus']==1:
                     result=[density_mesolve(value) for value in values]
                 else:
@@ -375,7 +376,7 @@ class QuantumSystemFunction:
                     result=qt.parallel_map(state_mcsolve,values,num_cpus=self.sysConstants['numCpus'])
             return (result,)
 
-        def measure(S:tuple,qubits:int):
+        def measure(S:tuple):
             '''
             name: measure
             function: measure the state
@@ -423,7 +424,7 @@ class QuantumSystemFunction:
                 return state,[value/len(state) for value in measResult]
 
             stateBatch,=S
-            if self.samples==None:
+            if self.isDensity==True:
                 if self.sysConstants['numCpus']==1:
                     result=[density_measure(singleState) for singleState in stateBatch]
                 else:
@@ -481,9 +482,13 @@ class QuantumSystemFunction:
                 DeltaOutParam=constants.pop(0)
             else:
                 DeltaOutParam=params.pop(0)
+            
+            if self.measOperators==None:
+                self.measOperators=build_measure_operators(qubits)
             S,=state
             Ys=[]
             H_I,Co_ps=build_int_operators(J,qubits)
+
             for X in Xs:
                 H_input=encode_input(X,inputParams,qubits)
                 S=evolve(S,(H_I,H_input),Co_ps)
