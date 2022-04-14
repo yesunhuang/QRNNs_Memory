@@ -9,6 +9,8 @@ Date: 2022-04-06 10:18:00
 '''
 
 #import everything
+from itertools import zip_longest
+from unittest import result
 import torch
 from torch import pi
 from collections.abc import Callable
@@ -110,6 +112,7 @@ class QuantumSystemFunction:
                     else:
                         state.append(qt.basis(2,0))
             state=qt.tensor(state)
+            #print(state)
             if self.isDensity==True:
                 S=[state.copy() for _ in range(batch_size)]
             else:
@@ -182,10 +185,10 @@ class QuantumSystemFunction:
             constants.append(DeltaInPad)
             #Interaction params
             if 'J' in self.inactive:
-                J=self.rescale['J']*torch.ones((len(self.interQPairs),)).detach_()
+                J=self.rescale['J']*torch.ones((len(self.interQPairs),1)).detach_()
                 constants.append(J)
             else:
-                J=normal((len(self.interQPairs),),self.rescale['J']).requires_grad_(True)
+                J=normal((len(self.interQPairs),1),self.rescale['J']).requires_grad_(True)
                 params.append(J)
             #Output params
             if 'WOut' in self.inactive:
@@ -195,10 +198,10 @@ class QuantumSystemFunction:
                 WOut=normal((len(self.outputQubits),outputSize),self.rescale['WOut']).requires_grad_(True)
                 params.append(WOut)
             if 'DeltaOut' in self.inactive:
-                DeltaOutParam=self.rescale['DeltaOut']*torch.ones((len(self.outputQubits),outputSize)).detach_()
+                DeltaOutParam=self.rescale['DeltaOut']*torch.ones(outputSize).detach_()
                 constants.append(DeltaOutParam)
             else:
-                DeltaOutParam=normal((len(self.outputQubits),outputSize),self.rescale['DeltaOut']).requires_grad_(True)
+                DeltaOutParam=self.rescale['DeltaOut']*torch.ones(outputSize).requires_grad_(True)
                 params.append(DeltaOutParam)
             return (params,constants)
         return get_params    
@@ -221,7 +224,7 @@ class QuantumSystemFunction:
         self.samples,self.measEffect=samples,measEffect
         self.measOperators=None
         defaultSysConstants={'measureQuantity':'z',\
-                            'Dissipation':'0.0',\
+                            'Dissipation':'0.1',\
                             'Omega':1.0,\
                             'tau':1.51*pi,\
                             'steps':10,\
@@ -231,7 +234,10 @@ class QuantumSystemFunction:
             if key not in defaultSysConstants.keys():
                 raise ValueError('The sysConstants key is not in the default sysConstants')
             defaultSysConstants[key]=sysConstants[key]
+        if defaultSysConstants['Dissipation']==None:
+            defaultSysConstants.pop('Dissipation')
         self.sysConstants=defaultSysConstants
+        #print(self.sysConstants)
 
         def multi_qubits_sigma(pauliBasis:list=['i']):
             '''
@@ -243,16 +249,16 @@ class QuantumSystemFunction:
             sigma=[]
             for i in range(0,len(pauliBasis)):
                 if pauliBasis[i]=='i':
-                    sigma.append(qt.qeye(2))
-                if pauliBasis[i]=='x':
+                    sigma.append(qt.identity(2))
+                elif pauliBasis[i]=='x':
                     sigma.append(qt.sigmax())
-                if pauliBasis[i]=='y':
+                elif pauliBasis[i]=='y':
                     sigma.append(qt.sigmay())
-                if pauliBasis[i]=='z':
+                elif pauliBasis[i]=='z':
                     sigma.append(qt.sigmaz())
-                if pauliBasis[i]=='-':
+                elif pauliBasis[i]=='-':
                     sigma.append(qt.sigmam())
-                if pauliBasis[i]=='+':
+                elif pauliBasis[i]=='+':
                     sigma.append(qt.sigmap())
             return qt.tensor(sigma)
         
@@ -264,11 +270,28 @@ class QuantumSystemFunction:
             '''
             measureOperators=[]
             M=self.sysConstants['measureQuantity']
-            pauliBasis=['i']*qubits
-            for i in range(0,self.outputQubits):
-                pauliBasis[i]=M
-                measureOperators.append(multi_qubits_sigma(pauliBasis))
-            return measureOperators
+            if M=='z':
+                sigma=qt.sigmaz()
+            elif M=='x':
+                sigma=qt.sigmax()
+            elif M=='y':
+                sigma=qt.sigmay()
+            eigenvalues,projectors,_=qtm.measurement_statistics_observable(qt.fock_dm(2,0),sigma)
+            measureValues=[eigenvalues]*len(self.outputQubits)
+            for i in range(0,len(self.outputQubits)):
+                P1=[]
+                P2=[]
+                for j in range(qubits):
+                    if j==self.outputQubits[i]:
+                        P1.append(projectors[0])
+                        P2.append(projectors[1])
+                    else:
+                        P1.append(qt.identity(2))
+                        P2.append(qt.identity(2))
+                P1=qt.tensor(P1)
+                P2=qt.tensor(P2)
+                measureOperators.append([P1,P2])
+            return [measureValues,measureOperators]
 
         def build_int_operators(J:torch.Tensor,qubits:int):
             '''
@@ -277,26 +300,26 @@ class QuantumSystemFunction:
             param {J}: the interaction strength
             return: the interaction operators
             '''
-            H_I=[]
+            H_I=0
             C_ops=[]
-            assert len(J)==self.interQPairs, \
+            assert J.numel()==len(self.interQPairs), \
                 'The length of J is not equal to the number of interaction pairs'
             for i in range(0,qubits):
                 pauliBasis=['i']*qubits
                 if 'Dissipation' in self.sysConstants:
                     pauliBasis[i]='-'
                     sigma=multi_qubits_sigma(pauliBasis)
-                    C_ops.append(np.sqrt(self.sysConstants['Dissipation'])*sigma)
+                    C_ops.append(np.sqrt(float(self.sysConstants['Dissipation']))*sigma)
                 pauliBasis[i]='x'
                 sigma=multi_qubits_sigma(pauliBasis)
-                H_I.append([self.sysConstants['Omega']/2.0,sigma])
+                H_I+=float(self.sysConstants['Omega']/2.0)*sigma
            
             for i in range(0,len(self.interQPairs)):
                 pauliBasis=['i']*qubits
                 pauliBasis[self.interQPairs[i][0]]='x'
                 pauliBasis[self.interQPairs[i][1]]='x'
                 sigma=multi_qubits_sigma(pauliBasis)
-                H_I.append([J[i],sigma])
+                H_I+=J[i].item()*sigma
             return H_I,C_ops
 
         def encode_input(xBatch:torch.Tensor,inputParams:tuple,qubits:int):
@@ -316,16 +339,16 @@ class QuantumSystemFunction:
                 pauliBasis[i]='z'
                 sigmazList.append(multi_qubits_sigma(pauliBasis))
             for delta in DeltaEncoded:
-                H=[]
+                H=0
                 for i in range(0,qubits):
                     if i in self.inputQubits:
-                        H.append([delta[i].item(),sigmazList[i].copy()])
+                        H+=sigmazList[i]*delta[i].item()
                     else:
-                        H.append([DeltaInPad[1],sigmazList[i].copy()])
+                        H+=sigmazList[i]*DeltaInPad[1]
                 H_input.append(H.copy())
             return H_input
 
-        def evolve(S:tuple,H:tuple,Co_ps:list):
+        def evolve(S:list,H:tuple,Co_ps:list):
             '''
             name: evolve
             function: evolve the state
@@ -337,33 +360,40 @@ class QuantumSystemFunction:
                 '''
                 name: densityMesolve
                 function: evolve the system via mesolve
-                param {S}:the initial state
+                param {value}:(single Hamiltonian,the initial density matrices)
                 return: the evolved state
                 '''
                 Hs,rho0=value
-                tlist=np.linspace(0,self.sysConstants['tau'],self.sysConstants['steps'])
-                finalState=qt.mesolve(rho0,Hs,Co_ps,tlist,options=self.sysConstants['options']).states[-1]
+                #print(len(Co_ps))
+                #print(type(Hs))
+                #print(type(rho0))
+                tlist=np.linspace(0,float(self.sysConstants['tau']),int(self.sysConstants['steps']))
+                finalState=qt.mesolve(Hs,rho0,tlist,c_ops=Co_ps,options=self.sysConstants['options']).states[-1]
                 return finalState
             
             def state_mcsolve(value:tuple):
                 '''
                 name: stateMcsolve
                 function: evolve the system via mcsolve
-                param {value}:(single Hamiltonian,the initial state)
+                param {value}:(single Hamiltonian,the initial states)
                 return: the evolved state
                 '''
                 def single_mc(sampleState):
-                    return qt.mcsolve(sampleState,Hs,Co_ps,tlist,ntraj=1,\
+                    return qt.mcsolve(Hs,sampleState,tlist,c_ops=Co_ps,ntraj=1,\
                     options=self.sysConstants['options'],progress_bar=False).states[-1]
                 Hs,rho0s=value
-                tlist=np.linspace(0,self.sysConstants['tau'],self.sysConstants['steps'])
+                tlist=np.linspace(0,float(self.sysConstants['tau']),int(self.sysConstants['steps']))
                 finalState=[single_mc(rho0) for rho0 in rho0s]
                 #finalState=qt.parallel_map(single_mc,rho0s)
                 return finalState
 
-            state,=S
+            stateBatch=S
+            #print(stateBatch[0])
             H_I,H_input=H
-            values=[(singleH+H_I,singleState) for singleH,singleState in zip(H_input,state)]
+            #print(H_I)
+            #print(type(H_input))
+            values=[(singleH+H_I,singleState) for singleH,singleState in zip(H_input,stateBatch)]
+            #print(type(values[0][1]))
             if self.isDensity==True:
                 if self.sysConstants['numCpus']==1:
                     result=[density_mesolve(value) for value in values]
@@ -374,9 +404,9 @@ class QuantumSystemFunction:
                     result=[state_mcsolve(value) for value in values]
                 else:
                     result=qt.parallel_map(state_mcsolve,values,num_cpus=self.sysConstants['numCpus'])
-            return (result,)
+            return result
 
-        def measure(S:tuple):
+        def measure(S:list):
             '''
             name: measure
             function: measure the state
@@ -391,21 +421,22 @@ class QuantumSystemFunction:
                 param {value}:the initial state
                 return: the measured state,the measured result
                 '''
-                measResult=[]
-                for measOp in self.measOperators:
-                    measResult.append(qt.expect(measOp,state))
-                if not self.measEffect:
-                    return state,measResult
-                else:
-                    newState=None    
-                    for measOp in self.measOperators:
-                        _,projectors,probabilities=qtm.measure_observable(state,measOp)
-                        for proj,prob in zip(projectors,probabilities):
-                            if newState==None:
-                                newState=proj*state*proj.dag()*prob
-                            else:
-                                newState=newState+proj*prob
-                    return [newState,measResult]
+                measResults=[]
+                newState=state.copy()
+                for measValues,measOp in zip(self.measOperators[0],self.measOperators[1]):
+                    #print(measValues,measOp)
+                    collapsedStates,probabilities=qtm.measurement_statistics_povm(newState,measOp)
+                    measResult=0.0
+                    for measValue,probability in zip(measValues,probabilities):
+                        measResult+=measValue*probability 
+                    measResults.append(measResult)
+                    if self.measEffect:
+                        newState=0
+                        for collapsedState,probability in zip(collapsedStates,probabilities):
+                            if not collapsedState==None:
+                                newState+=collapsedState*probability
+                return newState,measResults
+
             def state_measure(state:list):
                 '''
                 name: stateMeasure
@@ -413,33 +444,31 @@ class QuantumSystemFunction:
                 param {value}:the initial state
                 return: the measured state,the measured result
                 '''
-                measResult=[0.0]*len(self.measOperators)
+                measResults=[0.0]*len(self.measOperators)
                 for i in range(len(self.measOperators)):
                     for j in range(len(state)):
                         if self.measEffect:
-                            measValue,state[j]=qtm.measure_state(state[j],self.measOperators[i])
+                            measIndex,state[j]=qtm.measure_povm(state[j],self.measOperators[i][1])
                         else:
-                            measValue,_=qtm.measure_state(state[j],self.measOperators[i])
-                        measResult[i]=measResult[i]+measValue
-                return state,[value/len(state) for value in measResult]
+                            measIndex,_=qtm.measure_povm(state[j],self.measOperators[i][1])
+                        measResults[i]=measResults[i]+self.measOperators[i][0][int(measIndex)]
+                return [state,[value/len(state) for value in measResults]]
 
-            stateBatch,=S
+            stateBatch=S
             if self.isDensity==True:
                 if self.sysConstants['numCpus']==1:
-                    result=[density_measure(singleState) for singleState in stateBatch]
+                    results=[density_measure(singleState) for singleState in stateBatch]
                 else:
-                    result=qt.parallel_map(density_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
-                measState=(result[:,0],)
-                measResult=result[:,1]
-                return measState,torch.tensor(measResult)
+                    results=qt.parallel_map(density_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
             else:
                 if self.sysConstants['numCpus']==1:
-                    result=[state_measure(singleState) for singleState in stateBatch]
+                    results=[state_measure(singleState) for singleState in stateBatch]
                 else:
-                    result=qt.parallel_map(state_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
-                measState=(result[:,0],)
-                measResult=result[:,1]
-                return measState,torch.tensor(measResult)
+                    results=qt.parallel_map(state_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
+            measStates=[result[0] for result in results]
+            measResults=[result[1] for result in results]
+            #print(measResults)
+            return measStates,torch.tensor(measResults,dtype=torch.float32)
 
         
         def forward_fn(Xs:torch.tensor,state:tuple,weights:tuple):
@@ -485,15 +514,20 @@ class QuantumSystemFunction:
             
             if self.measOperators==None:
                 self.measOperators=build_measure_operators(qubits)
+            #print(self.measOperators[0])
             S,=state
+            #print(len(S))
+            #print(S[0])
             Ys=[]
             H_I,Co_ps=build_int_operators(J,qubits)
 
             for X in Xs:
                 H_input=encode_input(X,inputParams,qubits)
                 S=evolve(S,(H_I,H_input),Co_ps)
+                #print(S)
+                #print(len(S))
                 S,measResult=measure(S)
-                Y=torch.mm(WOut,measResult)+DeltaOutParam
+                Y=torch.mm(measResult,WOut)+DeltaOutParam
                 Ys.append(Y)
             return torch.cat(Ys,dim=0),(S,)
         return forward_fn
