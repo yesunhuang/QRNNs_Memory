@@ -144,6 +144,7 @@ class QuantumSystemFunction:
             defaultRescale[key]=rescale[key]
         self.rescale=defaultRescale
 
+        @torch.no_grad()
         def normal(shape,scale:float=1.0):
             '''
             name: normal
@@ -153,6 +154,17 @@ class QuantumSystemFunction:
             return: the distribution
             '''
             return torch.randn(size=shape)*scale
+
+        @torch.no_grad()
+        def ones(shape,scale:float=1.0):
+            '''
+            name: scalar
+            function: get the scalar distribution
+            param {shape}: the shape of the distribution
+            param {scale}: the rescale of the distribution
+            return: the ones
+            '''
+            return torch.ones(shape)*scale
 
         def get_params(inputSize:int,qubits:int,outputSize:int):
             '''
@@ -170,38 +182,38 @@ class QuantumSystemFunction:
             self.inputSize,self.qubits,self.outputSize=inputSize,qubits,outputSize
             #Input params
             if 'WIn' in self.inactive:
-                WIn=self.rescale['WIn']*torch.ones((inputSize,len(self.inputQubits))).detach_()
+                WIn=ones((inputSize,len(self.inputQubits)),self.rescale['WIn']).detach_()
                 constants.append(WIn)
             else:
                 WIn=normal((inputSize,len(self.inputQubits)),self.rescale['WIn']).requires_grad_(True)
                 params.append(WIn)
             if 'DeltaIn' in self.inactive:
-                DeltaInParam=self.rescale['DeltaIn']*torch.ones(len(self.inputQubits)).detach_()
+                DeltaInParam=ones(len(self.inputQubits),self.rescale['DeltaIn']).detach_()
                 constants.append(DeltaInParam)
             else:
-                DeltaInParam=self.rescale['DeltaIn']*torch.ones(len(self.inputQubits)).requires_grad_(True)
+                DeltaInParam=ones(len(self.inputQubits),self.rescale['DeltaIn']).requires_grad_(True)
                 params.append(DeltaInParam)
             DeltaInPad=[qubits,self.rescale['DeltaIn']]
             constants.append(DeltaInPad)
             #Interaction params
             if 'J' in self.inactive:
-                J=self.rescale['J']*torch.ones((len(self.interQPairs),1)).detach_()
+                J=ones((len(self.interQPairs),1),self.rescale['J']).detach_()
                 constants.append(J)
             else:
                 J=normal((len(self.interQPairs),1),self.rescale['J']).requires_grad_(True)
                 params.append(J)
             #Output params
             if 'WOut' in self.inactive:
-                WOut=self.rescale['WOut']*torch.ones((len(self.outputQubits),outputSize)).detach_()
+                WOut=ones((len(self.outputQubits),outputSize),self.rescale['WOut']).detach_()
                 constants.append(WOut)
             else:
                 WOut=normal((len(self.outputQubits),outputSize),self.rescale['WOut']).requires_grad_(True)
                 params.append(WOut)
             if 'DeltaOut' in self.inactive:
-                DeltaOutParam=self.rescale['DeltaOut']*torch.ones(outputSize).detach_()
+                DeltaOutParam=ones(outputSize,self.rescale['DeltaOut']).detach_()
                 constants.append(DeltaOutParam)
             else:
-                DeltaOutParam=self.rescale['DeltaOut']*torch.ones(outputSize).requires_grad_(True)
+                DeltaOutParam=ones(outputSize,self.rescale['DeltaOut']).requires_grad_(True)
                 params.append(DeltaOutParam)
             return (params,constants)
         return get_params    
