@@ -9,8 +9,7 @@ Date: 2022-04-06 10:18:00
 '''
 
 #import everything
-from itertools import zip_longest
-from unittest import result
+from sympy import count_ops
 import torch
 from torch import pi
 from collections.abc import Callable
@@ -19,6 +18,7 @@ import qutip as qt
 import qutip.measurement as qtm
 #modify path
 from GradientFreeOptimizers.CostFunc import StandardSNN
+import GradientFreeOptimizers.Helpers as hp
 
 class QuantumSRNN(StandardSNN):
     '''implement the quantum sRNN'''
@@ -182,7 +182,7 @@ class QuantumSystemFunction:
             self.inputSize,self.qubits,self.outputSize=inputSize,qubits,outputSize
             #Input params
             if 'WIn' in self.inactive:
-                WIn=ones((inputSize,len(self.inputQubits)),self.rescale['WIn']).detach_()
+                WIn=normal((inputSize,len(self.inputQubits)),self.rescale['WIn']).detach_()
                 constants.append(WIn)
             else:
                 WIn=normal((inputSize,len(self.inputQubits)),self.rescale['WIn']).requires_grad_(True)
@@ -197,14 +197,14 @@ class QuantumSystemFunction:
             constants.append(DeltaInPad)
             #Interaction params
             if 'J' in self.inactive:
-                J=ones((len(self.interQPairs),1),self.rescale['J']).detach_()
+                J=normal((len(self.interQPairs),1),self.rescale['J']).detach_()
                 constants.append(J)
             else:
                 J=normal((len(self.interQPairs),1),self.rescale['J']).requires_grad_(True)
                 params.append(J)
             #Output params
             if 'WOut' in self.inactive:
-                WOut=ones((len(self.outputQubits),outputSize),self.rescale['WOut']).detach_()
+                WOut=normal((len(self.outputQubits),outputSize),self.rescale['WOut']).detach_()
                 constants.append(WOut)
             else:
                 WOut=normal((len(self.outputQubits),outputSize),self.rescale['WOut']).requires_grad_(True)
@@ -391,8 +391,14 @@ class QuantumSystemFunction:
                 return: the evolved state
                 '''
                 def single_mc(sampleState):
-                    return qt.mcsolve(Hs,sampleState,tlist,c_ops=Co_ps,ntraj=1,\
-                    options=self.sysConstants['options'],progress_bar=False).states[-1]
+                    if len(Co_ps)==0:
+                        state=qt.sesolve(Hs,sampleState,tlist,\
+                            options=self.sysConstants['options'],progress_bar=None).states[-1]
+                    else:
+                        state=qt.mcsolve(Hs,sampleState,tlist,c_ops=Co_ps,ntraj=1,\
+                            options=self.sysConstants['options'],progress_bar=None).states[0,-1]
+                    assert isinstance(state,qt.Qobj), 'The evolved state is not a quantum object'
+                    return state 
                 Hs,rho0s=value
                 tlist=np.linspace(0,float(self.sysConstants['tau']),int(self.sysConstants['steps']))
                 finalState=[single_mc(rho0) for rho0 in rho0s]
@@ -422,7 +428,7 @@ class QuantumSystemFunction:
             '''
             name: measure
             function: measure the state
-            param {S}: the state
+            param {S}: the states
             return: (the measured state,the measured result)
             '''
 
@@ -456,15 +462,17 @@ class QuantumSystemFunction:
                 param {value}:the initial state
                 return: the measured state,the measured result
                 '''
-                measResults=[0.0]*len(self.measOperators)
+                measResults=[0.0]*len(self.measOperators[1])
                 for i in range(len(self.measOperators)):
                     for j in range(len(state)):
+                        #print(state[j])
                         if self.measEffect:
-                            measIndex,state[j]=qtm.measure_povm(state[j],self.measOperators[i][1])
+                            measIndex,state[j]=qtm.measure_povm(state[j],self.measOperators[1][i])
+                            #print(j)
                         else:
-                            measIndex,_=qtm.measure_povm(state[j],self.measOperators[i][1])
-                        measResults[i]=measResults[i]+self.measOperators[i][0][int(measIndex)]
-                return [state,[value/len(state) for value in measResults]]
+                            measIndex,_=qtm.measure_povm(state[j],self.measOperators[1][i])
+                        measResults[i]=measResults[i]+self.measOperators[0][i][int(measIndex)]
+                return state,[value/len(state) for value in measResults]
 
             stateBatch=S
             if self.isDensity==True:
@@ -479,6 +487,7 @@ class QuantumSystemFunction:
                     results=qt.parallel_map(state_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
             measStates=[result[0] for result in results]
             measResults=[result[1] for result in results]
+            #print(len(measResults))
             #print(measResults)
             return measStates,torch.tensor(measResults,dtype=torch.float32)
 
@@ -526,7 +535,7 @@ class QuantumSystemFunction:
             
             if self.measOperators==None:
                 self.measOperators=build_measure_operators(qubits)
-            #print(self.measOperators[0])
+            #print(len(self.measOperators[0]))
             S,=state
             #print(len(S))
             #print(S[0])
@@ -536,7 +545,7 @@ class QuantumSystemFunction:
             for X in Xs:
                 H_input=encode_input(X,inputParams,qubits)
                 S=evolve(S,(H_I,H_input),Co_ps)
-                #print(S)
+                #print(S[0][0])
                 #print(len(S))
                 S,measResult=measure(S)
                 Y=torch.mm(measResult,WOut)+DeltaOutParam
@@ -576,4 +585,74 @@ class QuantumSystemFunction:
                 outputs.append(Y)
             return self.outputTransoform(outputs)
         return predict_fun
+
+    @staticmethod
+    def grad_clipping(net, theta):
+        '''
+        name: grad_clipping
+        function: clip the gradients
+        param {net}: the network
+        param {theta}: the threshold
+        '''
+        params = [p for p in net.params if p.requires_grad]
+        for param in params:
+            param.grad.data.clamp_(-theta, theta)
+
+    def train_epoch(net,trainIter,loss,updater,isRandomIter,\
+        clipTheta:float=1.0):
+        '''
+        name: train_epoch
+        function: train the network for one epoch
+        param {net}: the network
+        param {trainIter}: the train iterator
+        param {loss}: the loss function
+        param {updater}: the updater
+        param {isRandomIter}: whether the iterator is random
+        param {clipTheta}: the threshold
+        '''
+        state,timer=None, hp.Timer()
+        #sum of training loss, y number
+        metric=hp.Accumulator(2)
+        for X,Y in trainIter:
+            if state is None or isRandomIter:
+                state=net.begin_state(batch_size=X.shape[0])
+            y=Y.transpose(0,1).reshape(-1,Y.shape[-1])
+            y_hat,state=net(X,state)
+            assert y_hat.shape==y.shape, 'y_hat.shape={}, y.shape={}'.format(y_hat.shape,y.shape)
+            l=loss(y_hat,y).mean()
+            if isinstance(updater,torch.optim.Optimizer):
+                updater.zero_grad()
+                l.backward()
+                QuantumSystemFunction.grad_clipping(net,clipTheta)
+                updater.step()
+            else:
+                l.backward()
+                QuantumSystemFunction.grad_clipping(net,clipTheta)
+                updater(batch_size=1)
+            metric.add(l*y.numel(),y.numel())
+        return metric[0]/metric[1], metric[1]/timer.stop()
+
+    @staticmethod
+    @torch.no_grad()
+    def evaluate_accuracy(net,testIter,loss,isRandomIter):
+        '''
+        name: evaluate_accuracy
+        function: evaluate the accuracy
+        param {net}: the network
+        param {testIter}: the test iterator
+        param {loss}: the loss function 
+        param {isRandomIter}: whether the iterator is random
+        '''
+        #sum of testing loss, y number
+        state=None
+        metric=hp.Accumulator(2)
+        for X,Y in testIter:
+            if state is None or isRandomIter:
+                state=net.begin_state(batch_size=X.shape[0])
+            y=Y.transpose(0,1).reshape(-1,Y.shape[-1])
+            y_hat,state=net(X,state)
+            assert y_hat.shape==y.shape, 'y_hat.shape={}, y.shape={}'.format(y_hat.shape,y.shape)
+            l=loss(y_hat,y).mean()
+            metric.add(l*y.numel(),y.numel())
+        return metric[0]/metric[1]
           

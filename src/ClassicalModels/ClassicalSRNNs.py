@@ -137,7 +137,7 @@ class SuportFunction:
             constants=[]
             #Input params
             if 'WeightInput' in inactive:
-                WInParam=rescale*torch.ones((inputSize,self.inputUnits)).detach_()
+                WInParam=normal((inputSize,self.inputUnits)).detach_()
                 constants.append(WInParam)
             else:
                 WInParam=normal((inputSize,self.inputUnits)).requires_grad_(True)
@@ -154,14 +154,14 @@ class SuportFunction:
             constants.append(DeltaInPad)
             #Hidden params
             if 'J' in inactive:
-                J=rescale*torch.ones((self.hiddenSize,self.hiddenSize)).detach_()
+                J=normal((self.hiddenSize,self.hiddenSize)).detach_()
                 constants.append(J)
             else:
                 J=normal((self.hiddenSize,self.hiddenSize)).requires_grad_(True)
                 params.append(J)
             #Output params
             if 'WeightOutput' in inactive:
-                WOutParam=rescale*torch.ones((self.outputUnits,outputSize)).detach_()
+                WOutParam=normal((self.outputUnits,outputSize)).detach_()
                 constants.append(WOutParam)
             else:
                 WOutParam=normal((self.outputUnits,self.outputSize)).requires_grad_(True)
@@ -333,6 +333,7 @@ class SuportFunction:
         return metric[0]/metric[1], metric[1]/timer.stop()
 
     @staticmethod
+    @torch.no_grad()
     def evaluate_accuracy(net,testIter,loss,isRandomIter):
         '''
         name: evaluate_accuracy
