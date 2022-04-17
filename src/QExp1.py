@@ -34,11 +34,11 @@ if __name__=='__main__':
     savepath=os.path.join(currentPath,'data\HenonMap\Exp')
     filename='QExp1.csv'
     ## Generate Data
-    '''
+    
     hmap=HenonMapDataGen(savepath=savepath)
     hmap(1000)
     hmap.save_to_CSV(filename)
-    '''
+    
     ## Read the data
     hmap=HenonMapDataGen(savepath=savepath)
     hmap.read_from_CSV(filename)
