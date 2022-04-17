@@ -17,12 +17,12 @@ from torch import pi
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 
-#if __name__=='__main__':
-from DataGenerator.HenonMapDataGen import HenonMapDataGen
-from QuantumModels.QuantumSRNNs import QuantumSRNN
-from QuantumModels.QuantumSRNNs import QuantumSystemFunction
-from GradientFreeOptimizers.CostFunc import GradFreeMSELoss
-import GradientFreeOptimizers.Helpers as hp
+if __name__=='__main__':
+    from DataGenerator.HenonMapDataGen import HenonMapDataGen
+    from QuantumModels.QuantumSRNNs import QuantumSRNN
+    from QuantumModels.QuantumSRNNs import QuantumSystemFunction
+    from GradientFreeOptimizers.CostFunc import GradFreeMSELoss
+    import GradientFreeOptimizers.Helpers as hp
 
 if __name__=='__main__':
     # Data Iter
@@ -52,42 +52,45 @@ if __name__=='__main__':
     X,Y=next(iter(testIter))
     print('Test Data Size:',len(testIter))
 
-# Model
-## Parameters
-inputSize=outputSize=1
-qubits=4
-activation=[0,2]
-inputQubits=outputQubits=[i for i in range(qubits)]
-interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
-inactive=['WIn','DeltaIn','J']
-sysConstants={'Dissipation':None,'tau':pi,'steps':3,'numCpus':4}
-measEffect=True
+if __name__=='__main__':
+    # Model
+    ## Parameters
+    inputSize=outputSize=1
+    qubits=4
+    activation=[0,2]
+    inputQubits=outputQubits=[i for i in range(qubits)]
+    interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
+    inactive=['WIn','DeltaIn','J']
+    sysConstants={'Dissipation':None,'tau':pi,'steps':3}
+    measEffect=True
 if __name__=='__main__':
     ## print parameters
     print('Input Qubits:',inputQubits)
     print('Output Qubits:',outputQubits)
     print('InterQPairs=',interQPairs)
-#if __name__=='__main__':
-## Get neccesary functions
-srnnTestSup=QuantumSystemFunction()
-#transform=lambda Xs:[torch.squeeze(x) for x in Xs]
-init_rnn_state=srnnTestSup.get_init_state_fun(activation=activation)
-get_params=srnnTestSup.get_get_params_fun(inputQubits=inputQubits,\
+if __name__=='__main__':
+    ## Get neccesary functions
+    srnnTestSup=QuantumSystemFunction()
+    #transform=lambda Xs:[torch.squeeze(x) for x in Xs]
+    init_rnn_state=srnnTestSup.get_init_state_fun(activation=activation)
+    get_params=srnnTestSup.get_get_params_fun(inputQubits=inputQubits,\
                                             outputQubits=outputQubits,\
                                             interQPairs=interQPairs,\
                                             inactive=inactive)
-rnn=srnnTestSup.get_forward_fn_fun(measEffect=measEffect,\
+    rnn=srnnTestSup.get_forward_fn_fun(measEffect=measEffect,\
                                         sysConstants=sysConstants)
-predict_fun=srnnTestSup.get_predict_fun(outputTransoform=transform)
+    predict_fun=srnnTestSup.get_predict_fun(outputTransoform=transform)
 
-net=QuantumSRNN(inputSize,qubits,outputSize,get_params,init_rnn_state,rnn)
+    net=QuantumSRNN(inputSize,qubits,outputSize,get_params,init_rnn_state,rnn)
 ## Test prediction
 if __name__=='__main__':
     state=net.begin_state(batchSize)
     Y,newState=net(X,state)
     print(Y.shape, len(newState), newState[0][0].shape)
 
-    # Train the network
+
+# Train the network
+if __name__=='__main__': 
     ## Parameters
     num_epochs, lr = 10, 0.1
     step_epochs=1
@@ -157,6 +160,5 @@ if __name__=='__main__':
 
     ## Parameters
     print(net.params)
-
 
 

@@ -384,7 +384,7 @@ class QuantumSystemFunction:
             H_I+=J[i].item()*sigma
         return H_I,C_ops
 
-    def encode_input(self,xBatch:torch.Tensor,inputParams:tuple,qubits:int):
+    def __encode_input(self,xBatch:torch.Tensor,inputParams:tuple,qubits:int):
         '''
         name: encodeInput
         function: encode the input
@@ -426,15 +426,11 @@ class QuantumSystemFunction:
         values=[(singleH+H_I,singleState,Co_ps) for singleH,singleState in zip(H_input,stateBatch)]
         #print(type(values[0][1]))
         if self.isDensity==True:
-            if self.sysConstants['numCpus']==1:
-                result=[self.__density_mesolve(value) for value in values]
-            else:
-                result=qt.parallel_map(self.__density_mesolve,values,num_cpus=self.sysConstants['numCpus'])
+            result=[self.__density_mesolve(value) for value in values]
+            #result=qt.parallel_map(self.__density_mesolve,values,num_cpus=self.sysConstants['numCpus'])
         else:
-            if self.sysConstants['numCpus']==1:
-                result=[self.__state_mcsolve(value) for value in values]
-            else:
-                result=qt.parallel_map(self.__state_mcsolve,values,num_cpus=self.sysConstants['numCpus'])
+            result=[self.__state_mcsolve(value) for value in values]
+            #result=qt.parallel_map(self.__state_mcsolve,values,num_cpus=self.sysConstants['numCpus'])
         return result
 
     def __measure(self,S:list):
@@ -446,15 +442,11 @@ class QuantumSystemFunction:
         '''
         stateBatch=S
         if self.isDensity==True:
-            if self.sysConstants['numCpus']==1:
-                results=[self.__density_measure(singleState) for singleState in stateBatch]
-            else:
-                results=qt.parallel_map(self.__density_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
+            results=[self.__density_measure(singleState) for singleState in stateBatch]
+            #results=qt.parallel_map(self.__density_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
         else:
-            if self.sysConstants['numCpus']==1:
-                results=[self.__state_measure(singleState) for singleState in stateBatch]
-            else:
-                results=qt.parallel_map(self.__state_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
+            results=[self.__state_measure(singleState) for singleState in stateBatch]
+            #results=qt.parallel_map(self.__state_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
         measStates=[result[0] for result in results]
         measResults=[result[1] for result in results]
         #print(len(measResults))
@@ -510,7 +502,7 @@ class QuantumSystemFunction:
         #timeMetric=hp.Accumulator(4)
         for X in Xs:
             #timer=hp.Timer()
-            H_input=self.encode_input(X,inputParams,qubits)
+            H_input=self.__encode_input(X,inputParams,qubits)
             #t1=timer.stop()
             #timer.start()
             S=self.__evolve(S,(H_I,H_input),Co_ps)
