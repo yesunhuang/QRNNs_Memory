@@ -99,7 +99,7 @@ class SuportFunction:
         return init_state
 
     def get_get_params_fun(self,inputRatio:float=1.0, outputRatio:float=1.0,\
-                            rescale:float=0.01,inactive:list=[]):
+                            rescale:float=0.01,inactive:list=[],isRandom:bool=True):
         '''
         name: get_get_params_fun
         function: get the function to get the parameters
@@ -107,6 +107,7 @@ class SuportFunction:
         param {outputRatio}: the ratio of output units
         param {inActive}: the params set to be inactive
                 'WeightInput', 'DeltaInput', 'J', 'WeightOutput', 'DeltaOutput'
+        param {isRandom}: whether to random the parameters
         return: the function
         '''
         self.rescale=rescale
@@ -121,6 +122,16 @@ class SuportFunction:
             return: the distribution
             '''
             return torch.randn(size=shape)*rescale
+        
+        def ones(shape):
+            '''
+            name: scalar
+            function: get the scalar distribution
+            param {shape}: the shape of the distribution
+            param {scale}: the rescale of the distribution
+            return: the ones
+            '''
+            return torch.ones(shape)*rescale
 
         def get_params(inputSize:int,hiddenSize:int,outputSize:int):
             '''
@@ -135,12 +146,16 @@ class SuportFunction:
             self.inputUnits,self.outputUnits=int(hiddenSize*inputRatio),int(hiddenSize*outputRatio)
             params=[]
             constants=[]
+            if isRandom:
+                init_value=normal
+            else:
+                init_value=ones
             #Input params
             if 'WeightInput' in inactive:
-                WInParam=normal((inputSize,self.inputUnits)).detach_()
+                WInParam=init_value((inputSize,self.inputUnits)).detach_()
                 constants.append(WInParam)
             else:
-                WInParam=normal((inputSize,self.inputUnits)).requires_grad_(True)
+                WInParam=init_value((inputSize,self.inputUnits)).requires_grad_(True)
                 params.append(WInParam)
             WInZeroPad=torch.zeros((inputSize,self.hiddenSize-self.inputUnits)).detach_()
             constants.append(WInZeroPad)
@@ -154,17 +169,17 @@ class SuportFunction:
             constants.append(DeltaInPad)
             #Hidden params
             if 'J' in inactive:
-                J=normal((self.hiddenSize,self.hiddenSize)).detach_()
+                J=init_value((self.hiddenSize,self.hiddenSize)).detach_()
                 constants.append(J)
             else:
-                J=normal((self.hiddenSize,self.hiddenSize)).requires_grad_(True)
+                J=init_value((self.hiddenSize,self.hiddenSize)).requires_grad_(True)
                 params.append(J)
             #Output params
             if 'WeightOutput' in inactive:
-                WOutParam=normal((self.outputUnits,outputSize)).detach_()
+                WOutParam=init_value((self.outputUnits,outputSize)).detach_()
                 constants.append(WOutParam)
             else:
-                WOutParam=normal((self.outputUnits,self.outputSize)).requires_grad_(True)
+                WOutParam=init_value((self.outputUnits,self.outputSize)).requires_grad_(True)
                 params.append(WOutParam)
             WOutZeroPad=torch.zeros(self.hiddenSize-self.outputUnits,self.outputSize).detach_()
             constants.append(WOutZeroPad)

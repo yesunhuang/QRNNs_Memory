@@ -9,6 +9,7 @@ Date: 2022-04-06 10:18:00
 '''
 
 #import everything
+from mimetypes import init
 from sympy import count_ops
 import torch
 from torch import pi
@@ -122,7 +123,7 @@ class QuantumSystemFunction:
 
     def get_get_params_fun(self, inputQubits:list=[],outputQubits:list=[],\
                         interQPairs:list=[],inactive:list=[],\
-                        rescale:dict={}):
+                        rescale:dict={},isRandom:bool=True):
         '''
         name:get_get_params_fun
         function: get the get_params function
@@ -133,6 +134,7 @@ class QuantumSystemFunction:
             {'WIn':0.01,'DeltaIn':0,'J':torch.tensor([0.01]),'WOut':0.01,'DeltaOut':0}
         param {inactive}: the inactive params
         'WIn','DeltaIn','J',''WOut','DeltaOut'
+        param {isRandom}: whether the parameters are random initialized
         return: the get_params function
         '''
         self.inputQubits,self.outputQubits=inputQubits,outputQubits
@@ -180,12 +182,16 @@ class QuantumSystemFunction:
             assert len(inputQubits)<=qubits, 'Too many input qubits'
             assert len(outputQubits)<=qubits, 'Too many output qubits'
             self.inputSize,self.qubits,self.outputSize=inputSize,qubits,outputSize
+            if isRandom:
+                init_value=normal
+            else:
+                init_value=ones
             #Input params
             if 'WIn' in self.inactive:
-                WIn=normal((inputSize,len(self.inputQubits)),self.rescale['WIn']).detach_()
+                WIn=init_value((inputSize,len(self.inputQubits)),self.rescale['WIn']).detach_()
                 constants.append(WIn)
             else:
-                WIn=normal((inputSize,len(self.inputQubits)),self.rescale['WIn']).requires_grad_(True)
+                WIn=init_value((inputSize,len(self.inputQubits)),self.rescale['WIn']).requires_grad_(True)
                 params.append(WIn)
             if 'DeltaIn' in self.inactive:
                 DeltaInParam=ones(len(self.inputQubits),self.rescale['DeltaIn']).detach_()
@@ -197,17 +203,17 @@ class QuantumSystemFunction:
             constants.append(DeltaInPad)
             #Interaction params
             if 'J' in self.inactive:
-                J=normal((len(self.interQPairs),1),self.rescale['J']).detach_()
+                J=init_value((len(self.interQPairs),1),self.rescale['J']).detach_()
                 constants.append(J)
             else:
-                J=normal((len(self.interQPairs),1),self.rescale['J']).requires_grad_(True)
+                J=init_value((len(self.interQPairs),1),self.rescale['J']).requires_grad_(True)
                 params.append(J)
             #Output params
             if 'WOut' in self.inactive:
-                WOut=normal((len(self.outputQubits),outputSize),self.rescale['WOut']).detach_()
+                WOut=init_value((len(self.outputQubits),outputSize),self.rescale['WOut']).detach_()
                 constants.append(WOut)
             else:
-                WOut=normal((len(self.outputQubits),outputSize),self.rescale['WOut']).requires_grad_(True)
+                WOut=init_value((len(self.outputQubits),outputSize),self.rescale['WOut']).requires_grad_(True)
                 params.append(WOut)
             if 'DeltaOut' in self.inactive:
                 DeltaOutParam=ones(outputSize,self.rescale['DeltaOut']).detach_()
