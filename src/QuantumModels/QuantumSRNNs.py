@@ -9,8 +9,6 @@ Date: 2022-04-06 10:18:00
 '''
 
 #import everything
-from mimetypes import init
-from sympy import count_ops
 import torch
 from torch import pi
 from collections.abc import Callable
@@ -81,6 +79,34 @@ class QuantumSystemFunction:
         function: initialize the class for quantum system function
         '''
     
+    def __init_state(self,batch_size:int, qubits:int):
+        '''
+        name:init_state
+        function: initialize the state
+        param {batch_size}: the batch size
+        param {qubits}: the number of qubits
+        return: the state
+        '''
+        state=[]
+        for i in range(0,qubits):
+            if i in self.activation:
+                if self.isDensity:
+                    state.append(qt.fock_dm(2,1))
+                else:
+                    state.append(qt.basis(2,1))
+            else:
+                if self.isDensity:
+                    state.append(qt.fock_dm(2,0))
+                else:
+                    state.append(qt.basis(2,0))
+        state=qt.tensor(state)
+        #print(state)
+        if self.isDensity==True:
+            S=[state.copy() for _ in range(batch_size)]
+        else:
+            S=[[state.copy() for _ in range(self.samples)] for _ in range(self.samples)]
+        return (S,)
+
     def get_init_state_fun(self,activation:list=[],isDensity:bool=True):
         '''
         name: 
@@ -91,35 +117,82 @@ class QuantumSystemFunction:
         '''        
         self.activation=activation
         self.isDensity=isDensity
+        return self.__init_state
 
-        def init_state(batch_size:int, qubits:int):
-            '''
-            name:init_state
-            function: initialize the state
-            param {batch_size}: the batch size
-            param {qubits}: the number of qubits
-            return: the state
-            '''
-            state=[]
-            for i in range(0,qubits):
-                if i in self.activation:
-                    if self.isDensity:
-                        state.append(qt.fock_dm(2,1))
-                    else:
-                        state.append(qt.basis(2,1))
-                else:
-                    if self.isDensity:
-                        state.append(qt.fock_dm(2,0))
-                    else:
-                        state.append(qt.basis(2,0))
-            state=qt.tensor(state)
-            #print(state)
-            if self.isDensity==True:
-                S=[state.copy() for _ in range(batch_size)]
-            else:
-                S=[[state.copy() for _ in range(self.samples)] for _ in range(self.samples)]
-            return (S,)
-        return init_state
+    def normal(self,shape,scale:float=1.0):
+        '''
+        name: normal
+        function: get the normal distribution
+        param {shape}: the shape of the distribution
+        param {scale}: the rescale of the distribution
+        return: the distribution
+        '''
+        return torch.randn(size=shape)*scale
+
+    def ones(self,shape,scale:float=1.0):
+        '''
+        name: scalar
+        function: get the scalar distribution
+        param {shape}: the shape of the distribution
+         param {scale}: the rescale of the distribution
+        return: the ones
+        '''
+        return torch.ones(shape)*scale
+
+    def __get_params(self,inputSize:int,qubits:int,outputSize:int):
+        '''
+        name:get_params
+        function: get the parameters
+        param {inputSize}: the size of input
+        param {qubits}: the number of qubits
+        param {outputSize}: the size of output
+        return: the parameters
+        '''
+        params=[]
+        constants=[]
+        assert len(self.inputQubits)<=qubits, 'Too many input qubits'
+        assert len(self.outputQubits)<=qubits, 'Too many output qubits'
+        self.inputSize,self.qubits,self.outputSize=inputSize,qubits,outputSize
+        if self.isRandom:
+            init_value=self.normal
+        else:
+            init_value=self.ones
+        #Input params
+        if 'WIn' in self.inactive:
+            WIn=init_value((inputSize,len(self.inputQubits)),self.rescale['WIn']).detach_()
+            constants.append(WIn)
+        else:
+            WIn=init_value((inputSize,len(self.inputQubits)),self.rescale['WIn']).requires_grad_(True)
+            params.append(WIn)
+        if 'DeltaIn' in self.inactive:
+            DeltaInParam=self.ones(len(self.inputQubits),self.rescale['DeltaIn']).detach_()
+            constants.append(DeltaInParam)
+        else:
+            DeltaInParam=self.ones(len(self.inputQubits),self.rescale['DeltaIn']).requires_grad_(True)
+            params.append(DeltaInParam)
+        DeltaInPad=[qubits,self.rescale['DeltaIn']]
+        constants.append(DeltaInPad)
+        #Interaction params
+        if 'J' in self.inactive:
+            J=init_value((len(self.interQPairs),1),self.rescale['J']).detach_()
+            constants.append(J)
+        else:
+            J=init_value((len(self.interQPairs),1),self.rescale['J']).requires_grad_(True)
+            params.append(J)
+        #Output params
+        if 'WOut' in self.inactive:
+            WOut=init_value((len(self.outputQubits),outputSize),self.rescale['WOut']).detach_()
+            constants.append(WOut)
+        else:
+            WOut=init_value((len(self.outputQubits),outputSize),self.rescale['WOut']).requires_grad_(True)
+            params.append(WOut)
+        if 'DeltaOut' in self.inactive:
+            DeltaOutParam=self.ones(outputSize,self.rescale['DeltaOut']).detach_()
+            constants.append(DeltaOutParam)
+        else:
+            DeltaOutParam=self.ones(outputSize,self.rescale['DeltaOut']).requires_grad_(True)
+            params.append(DeltaOutParam)
+        return (params,constants)
 
     def get_get_params_fun(self, inputQubits:list=[],outputQubits:list=[],\
                         interQPairs:list=[],inactive:list=[],\
@@ -139,90 +212,320 @@ class QuantumSystemFunction:
         '''
         self.inputQubits,self.outputQubits=inputQubits,outputQubits
         self.interQPairs,self.inactive=interQPairs,inactive
+        self.isRandom=isRandom
         defaultRescale={'WIn':0.01,'DeltaIn':0,'J':torch.tensor([0.01]),'WOut':0.01,'DeltaOut':0}
         for key in rescale.keys():
             if key not in defaultRescale.keys():
                 raise ValueError('The rescale key is not in the default rescale')
             defaultRescale[key]=rescale[key]
         self.rescale=defaultRescale
+        return self.__get_params    
 
-        @torch.no_grad()
-        def normal(shape,scale:float=1.0):
-            '''
-            name: normal
-            function: get the normal distribution
-            param {shape}: the shape of the distribution
-            param {scale}: the rescale of the distribution
-            return: the distribution
-            '''
-            return torch.randn(size=shape)*scale
+    def __density_mesolve(self,value:tuple):
+        '''
+        name: densityMesolve
+        function: evolve the system via mesolve
+        param {value}:(single Hamiltonian,the initial density matrices)
+        return: the evolved state
+        '''
+        Hs,rho0,Co_ps=value
+        #print(len(Co_ps))
+        #print(type(Hs))
+        #print(type(rho0))
+        tlist=np.linspace(0,float(self.sysConstants['tau']),int(self.sysConstants['steps']))
+        finalState=qt.mesolve(Hs,rho0,tlist,c_ops=Co_ps,options=self.sysConstants['options']).states[-1]
+        return finalState
 
-        @torch.no_grad()
-        def ones(shape,scale:float=1.0):
-            '''
-            name: scalar
-            function: get the scalar distribution
-            param {shape}: the shape of the distribution
-            param {scale}: the rescale of the distribution
-            return: the ones
-            '''
-            return torch.ones(shape)*scale
+    def __single_mc(self,sampleState,Co_ps,Hs,tlist):
+            if len(Co_ps)==0:
+                state=qt.sesolve(Hs,sampleState,tlist,\
+                    options=self.sysConstants['options'],progress_bar=None).states[-1]
+            else:
+                state=qt.mcsolve(Hs,sampleState,tlist,c_ops=Co_ps,ntraj=1,\
+                    options=self.sysConstants['options'],progress_bar=None).states[0,-1]
+            assert isinstance(state,qt.Qobj), 'The evolved state is not a quantum object'
+            return state
+    
+    def __state_mcsolve(self,value:tuple):
+        '''
+        name: stateMcsolve
+        function: evolve the system via mcsolve
+        param {value}:(single Hamiltonian,the initial states)
+        return: the evolved state
+        ''' 
+        Hs,rho0s,Co_ps=value
+        tlist=np.linspace(0,float(self.sysConstants['tau']),int(self.sysConstants['steps']))
+        finalState=[self.__single_mc(rho0,Co_ps,Hs,tlist) for rho0 in rho0s]
+        #finalState=qt.parallel_map(single_mc,rho0s)
+        return finalState
 
-        def get_params(inputSize:int,qubits:int,outputSize:int):
-            '''
-            name:get_params
-            function: get the parameters
-            param {inputSize}: the size of input
-            param {qubits}: the number of qubits
-            param {outputSize}: the size of output
-            return: the parameters
-            '''
-            params=[]
-            constants=[]
-            assert len(inputQubits)<=qubits, 'Too many input qubits'
-            assert len(outputQubits)<=qubits, 'Too many output qubits'
-            self.inputSize,self.qubits,self.outputSize=inputSize,qubits,outputSize
-            if isRandom:
-                init_value=normal
+    def __density_measure(self,state:qt.Qobj):
+        '''
+        name: densityMeasure
+        function: measure the system via mesolve
+        param {value}:the initial state
+        return: the measured state,the measured result
+        '''
+        measResults=[]
+        newState=state.copy()
+        for measValues,measOp in zip(self.measOperators[0],self.measOperators[1]):
+            #print(measValues,measOp)
+            collapsedStates,probabilities=qtm.measurement_statistics_povm(newState,measOp)
+            measResult=0.0
+            for measValue,probability in zip(measValues,probabilities):
+                measResult+=measValue*probability 
+            measResults.append(measResult)
+            if self.measEffect:
+                newState=0
+                for collapsedState,probability in zip(collapsedStates,probabilities):
+                    if not collapsedState==None:
+                        newState+=collapsedState*probability
+        return newState,measResults
+
+    def __state_measure(self,state:list):
+        '''
+        name: stateMeasure
+        function: measure the system via mcsolve
+        param {value}:the initial state
+        return: the measured state,the measured result
+        '''
+        measResults=[0.0]*len(self.measOperators[1])
+        for i in range(len(self.measOperators)):
+            for j in range(len(state)):
+                #print(state[j])
+                if self.measEffect:
+                    measIndex,state[j]=qtm.measure_povm(state[j],self.measOperators[1][i])
+                    #print(j)
+                else:
+                    measIndex,_=qtm.measure_povm(state[j],self.measOperators[1][i])
+                measResults[i]=measResults[i]+self.measOperators[0][i][int(measIndex)]
+        return state,[value/len(state) for value in measResults]
+
+    def __multi_qubits_sigma(self,pauliBasis:list=['i']):
+        '''
+        name:build_multi_qubits_sigma
+        function: build the multi qubits sigma
+        param {pauliBasis}: the pauliBasis
+        return: the sigma
+        '''
+        sigma=[]
+        for i in range(0,len(pauliBasis)):
+            if pauliBasis[i]=='i':
+                sigma.append(qt.identity(2))
+            elif pauliBasis[i]=='x':
+                sigma.append(qt.sigmax())
+            elif pauliBasis[i]=='y':
+                sigma.append(qt.sigmay())
+            elif pauliBasis[i]=='z':
+                sigma.append(qt.sigmaz())
+            elif pauliBasis[i]=='-':
+                sigma.append(qt.sigmam())
+            elif pauliBasis[i]=='+':
+                sigma.append(qt.sigmap())
+        return qt.tensor(sigma)
+    
+    def __build_measure_operators(self,qubits:int):
+        '''
+        name:build_measure_operators
+        function: build the measure operators
+        return: the measure operators
+        '''
+        measureOperators=[]
+        M=self.sysConstants['measureQuantity']
+        if M=='z':
+            sigma=qt.sigmaz()
+        elif M=='x':
+            sigma=qt.sigmax()
+        elif M=='y':
+            sigma=qt.sigmay()
+        eigenvalues,projectors,_=qtm.measurement_statistics_observable(qt.fock_dm(2,0),sigma)
+        measureValues=[eigenvalues]*len(self.outputQubits)
+        for i in range(0,len(self.outputQubits)):
+            P1=[]
+            P2=[]
+            for j in range(qubits):
+                if j==self.outputQubits[i]:
+                    P1.append(projectors[0])
+                    P2.append(projectors[1])
+                else:
+                    P1.append(qt.identity(2))
+                    P2.append(qt.identity(2))
+            P1=qt.tensor(P1)
+            P2=qt.tensor(P2)
+            measureOperators.append([P1,P2])
+        return [measureValues,measureOperators]
+
+    def __build_int_operators(self,J:torch.Tensor,qubits:int):
+        '''
+        name:build_int_operators
+        function: build the interaction operators
+        param {J}: the interaction strength
+        return: the interaction operators
+        '''
+        H_I=0
+        C_ops=[]
+        assert J.numel()==len(self.interQPairs), \
+            'The length of J is not equal to the number of interaction pairs'
+        for i in range(0,qubits):
+            pauliBasis=['i']*qubits
+            if 'Dissipation' in self.sysConstants:
+                pauliBasis[i]='-'
+                sigma=self.__multi_qubits_sigma(pauliBasis)
+                C_ops.append(np.sqrt(float(self.sysConstants['Dissipation']))*sigma)
+            pauliBasis[i]='x'
+            sigma=self.__multi_qubits_sigma(pauliBasis)
+            H_I+=float(self.sysConstants['Omega']/2.0)*sigma
+           
+        for i in range(0,len(self.interQPairs)):
+            pauliBasis=['i']*qubits
+            pauliBasis[self.interQPairs[i][0]]='x'
+            pauliBasis[self.interQPairs[i][1]]='x'
+            sigma=self.__multi_qubits_sigma(pauliBasis)
+            H_I+=J[i].item()*sigma
+        return H_I,C_ops
+
+    def encode_input(self,xBatch:torch.Tensor,inputParams:tuple,qubits:int):
+        '''
+        name: encodeInput
+        function: encode the input
+        param {xBatch}: the input
+        param {inputParams}: the input parameters
+        return: the encoded input
+        '''
+        H_input=[]
+        WIn,DeltaIn,DeltaInPad=inputParams
+        DeltaEncoded=torch.mm(xBatch,WIn)+DeltaIn
+        sigmazList=[]
+        for i in range(0,qubits):
+            pauliBasis=['i']*qubits
+            pauliBasis[i]='z'
+            sigmazList.append(self.__multi_qubits_sigma(pauliBasis))
+        for delta in DeltaEncoded:
+            H=0
+            for i in range(0,qubits):
+                if i in self.inputQubits:
+                    H+=sigmazList[i]*delta[i].item()
+                else:
+                    H+=sigmazList[i]*DeltaInPad[1]
+            H_input.append(H.copy())
+        return H_input
+
+    def __evolve(self,S:list,H:tuple,Co_ps:list):
+        '''
+        name: evolve
+        function: evolve the state
+        param {S}: the state
+        param {evolParam}: the evolution parameters
+        return: the evolved state
+        '''
+        stateBatch=S
+        #print(stateBatch[0])
+        H_I,H_input=H
+        #print(H_I)
+        #print(type(H_input))
+        values=[(singleH+H_I,singleState,Co_ps) for singleH,singleState in zip(H_input,stateBatch)]
+        #print(type(values[0][1]))
+        if self.isDensity==True:
+            if self.sysConstants['numCpus']==1:
+                result=[self.__density_mesolve(value) for value in values]
             else:
-                init_value=ones
-            #Input params
-            if 'WIn' in self.inactive:
-                WIn=init_value((inputSize,len(self.inputQubits)),self.rescale['WIn']).detach_()
-                constants.append(WIn)
+                result=qt.parallel_map(self.__density_mesolve,values,num_cpus=self.sysConstants['numCpus'])
+        else:
+            if self.sysConstants['numCpus']==1:
+                result=[self.__state_mcsolve(value) for value in values]
             else:
-                WIn=init_value((inputSize,len(self.inputQubits)),self.rescale['WIn']).requires_grad_(True)
-                params.append(WIn)
-            if 'DeltaIn' in self.inactive:
-                DeltaInParam=ones(len(self.inputQubits),self.rescale['DeltaIn']).detach_()
-                constants.append(DeltaInParam)
+                result=qt.parallel_map(self.__state_mcsolve,values,num_cpus=self.sysConstants['numCpus'])
+        return result
+
+    def __measure(self,S:list):
+        '''
+        name: measure
+        function: measure the state
+        param {S}: the states
+        return: (the measured state,the measured result)
+        '''
+        stateBatch=S
+        if self.isDensity==True:
+            if self.sysConstants['numCpus']==1:
+                results=[self.__density_measure(singleState) for singleState in stateBatch]
             else:
-                DeltaInParam=ones(len(self.inputQubits),self.rescale['DeltaIn']).requires_grad_(True)
-                params.append(DeltaInParam)
-            DeltaInPad=[qubits,self.rescale['DeltaIn']]
-            constants.append(DeltaInPad)
-            #Interaction params
-            if 'J' in self.inactive:
-                J=init_value((len(self.interQPairs),1),self.rescale['J']).detach_()
-                constants.append(J)
+                results=qt.parallel_map(self.__density_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
+        else:
+            if self.sysConstants['numCpus']==1:
+                results=[self.__state_measure(singleState) for singleState in stateBatch]
             else:
-                J=init_value((len(self.interQPairs),1),self.rescale['J']).requires_grad_(True)
-                params.append(J)
-            #Output params
-            if 'WOut' in self.inactive:
-                WOut=init_value((len(self.outputQubits),outputSize),self.rescale['WOut']).detach_()
-                constants.append(WOut)
-            else:
-                WOut=init_value((len(self.outputQubits),outputSize),self.rescale['WOut']).requires_grad_(True)
-                params.append(WOut)
-            if 'DeltaOut' in self.inactive:
-                DeltaOutParam=ones(outputSize,self.rescale['DeltaOut']).detach_()
-                constants.append(DeltaOutParam)
-            else:
-                DeltaOutParam=ones(outputSize,self.rescale['DeltaOut']).requires_grad_(True)
-                params.append(DeltaOutParam)
-            return (params,constants)
-        return get_params    
+                results=qt.parallel_map(self.__state_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
+        measStates=[result[0] for result in results]
+        measResults=[result[1] for result in results]
+        #print(len(measResults))
+        #print(measResults)
+        return measStates,torch.tensor(measResults,dtype=torch.float32)
+
+    def __forward_fn(self,Xs:torch.tensor,state:tuple,weights:tuple):
+        '''
+        name:forward_fn
+        function: the forward function
+        param {Xs}: the input
+        param {state}: the state
+        param {weights}: the weights
+        return: the output
+        '''
+        params,constants=weights
+        if isinstance(params,tuple):
+            params=list(params)
+            constants=list(constants)
+        params,constants=params.copy(),constants.copy()
+        #Input params
+        if 'WIn' in self.inactive:
+            WIn=constants.pop(0)
+        else:
+            WIn=params.pop(0)
+        if 'DeltaIn' in self.inactive:
+            DeltaInParam=constants.pop(0)
+        else:
+            DeltaInParam=params.pop(0)
+        DeltaInPad=constants.pop(0)
+        qubits=DeltaInPad[0]
+        inputParams=(WIn,DeltaInParam,DeltaInPad)
+        #Interaction params
+        if 'J' in self.inactive:
+            J=constants.pop(0)
+        else:
+            J=params.pop(0)
+        #Output params
+        if 'WOut' in self.inactive:
+            WOut=constants.pop(0)
+        else:
+            WOut=params.pop(0)
+        if 'DeltaOut' in self.inactive:
+            DeltaOutParam=constants.pop(0)
+        else:
+            DeltaOutParam=params.pop(0)
+            
+        if self.measOperators==None:
+            self.measOperators=self.__build_measure_operators(qubits)
+        S,=state
+        Ys=[]
+        H_I,Co_ps=self.__build_int_operators(J,qubits)
+        #timeMetric=hp.Accumulator(4)
+        for X in Xs:
+            #timer=hp.Timer()
+            H_input=self.encode_input(X,inputParams,qubits)
+            #t1=timer.stop()
+            #timer.start()
+            S=self.__evolve(S,(H_I,H_input),Co_ps)
+            #t2=timer.stop()
+            #timer.start()
+            S,measResult=self.__measure(S)
+            #t3=timer.stop()
+            #timer.start()
+            Y=torch.mm(measResult,WOut)+DeltaOutParam
+            #t4=timer.stop()
+            #timeMetric.add(t1,t2,t3,t4)
+            Ys.append(Y)
+        #for i in range(4):
+            #print(f'{i+1}: {timeMetric[i]:f}')
+        return torch.cat(Ys,dim=0),(S,)
 
     def get_forward_fn_fun(self,sysConstants:dict={},samples:int=1,measEffect:bool=False):
         '''
@@ -234,6 +537,7 @@ class QuantumSystemFunction:
                             'Omega':1.0,
                             'tau':1.51*pi,
                             'steps':10,
+                            'numCpus':1,
                             'options':qt.Options()}
         param {samples}: the number of samples
         param {measEffect}: whether the measurement effect is included
@@ -256,308 +560,29 @@ class QuantumSystemFunction:
             defaultSysConstants.pop('Dissipation')
         self.sysConstants=defaultSysConstants
         #print(self.sysConstants)
+        return self.__forward_fn
 
-        def multi_qubits_sigma(pauliBasis:list=['i']):
-            '''
-            name:build_multi_qubits_sigma
-            function: build the multi qubits sigma
-            param {pauliBasis}: the pauliBasis
-            return: the sigma
-            '''
-            sigma=[]
-            for i in range(0,len(pauliBasis)):
-                if pauliBasis[i]=='i':
-                    sigma.append(qt.identity(2))
-                elif pauliBasis[i]=='x':
-                    sigma.append(qt.sigmax())
-                elif pauliBasis[i]=='y':
-                    sigma.append(qt.sigmay())
-                elif pauliBasis[i]=='z':
-                    sigma.append(qt.sigmaz())
-                elif pauliBasis[i]=='-':
-                    sigma.append(qt.sigmam())
-                elif pauliBasis[i]=='+':
-                    sigma.append(qt.sigmap())
-            return qt.tensor(sigma)
-        
-        def build_measure_operators(qubits:int):
-            '''
-            name:build_measure_operators
-            function: build the measure operators
-            return: the measure operators
-            '''
-            measureOperators=[]
-            M=self.sysConstants['measureQuantity']
-            if M=='z':
-                sigma=qt.sigmaz()
-            elif M=='x':
-                sigma=qt.sigmax()
-            elif M=='y':
-                sigma=qt.sigmay()
-            eigenvalues,projectors,_=qtm.measurement_statistics_observable(qt.fock_dm(2,0),sigma)
-            measureValues=[eigenvalues]*len(self.outputQubits)
-            for i in range(0,len(self.outputQubits)):
-                P1=[]
-                P2=[]
-                for j in range(qubits):
-                    if j==self.outputQubits[i]:
-                        P1.append(projectors[0])
-                        P2.append(projectors[1])
-                    else:
-                        P1.append(qt.identity(2))
-                        P2.append(qt.identity(2))
-                P1=qt.tensor(P1)
-                P2=qt.tensor(P2)
-                measureOperators.append([P1,P2])
-            return [measureValues,measureOperators]
-
-        def build_int_operators(J:torch.Tensor,qubits:int):
-            '''
-            name:build_int_operators
-            function: build the interaction operators
-            param {J}: the interaction strength
-            return: the interaction operators
-            '''
-            H_I=0
-            C_ops=[]
-            assert J.numel()==len(self.interQPairs), \
-                'The length of J is not equal to the number of interaction pairs'
-            for i in range(0,qubits):
-                pauliBasis=['i']*qubits
-                if 'Dissipation' in self.sysConstants:
-                    pauliBasis[i]='-'
-                    sigma=multi_qubits_sigma(pauliBasis)
-                    C_ops.append(np.sqrt(float(self.sysConstants['Dissipation']))*sigma)
-                pauliBasis[i]='x'
-                sigma=multi_qubits_sigma(pauliBasis)
-                H_I+=float(self.sysConstants['Omega']/2.0)*sigma
-           
-            for i in range(0,len(self.interQPairs)):
-                pauliBasis=['i']*qubits
-                pauliBasis[self.interQPairs[i][0]]='x'
-                pauliBasis[self.interQPairs[i][1]]='x'
-                sigma=multi_qubits_sigma(pauliBasis)
-                H_I+=J[i].item()*sigma
-            return H_I,C_ops
-
-        def encode_input(xBatch:torch.Tensor,inputParams:tuple,qubits:int):
-            '''
-            name: encodeInput
-            function: encode the input
-            param {xBatch}: the input
-            param {inputParams}: the input parameters
-            return: the encoded input
-            '''
-            H_input=[]
-            WIn,DeltaIn,DeltaInPad=inputParams
-            DeltaEncoded=torch.mm(xBatch,WIn)+DeltaIn
-            sigmazList=[]
-            for i in range(0,qubits):
-                pauliBasis=['i']*qubits
-                pauliBasis[i]='z'
-                sigmazList.append(multi_qubits_sigma(pauliBasis))
-            for delta in DeltaEncoded:
-                H=0
-                for i in range(0,qubits):
-                    if i in self.inputQubits:
-                        H+=sigmazList[i]*delta[i].item()
-                    else:
-                        H+=sigmazList[i]*DeltaInPad[1]
-                H_input.append(H.copy())
-            return H_input
-
-        def evolve(S:list,H:tuple,Co_ps:list):
-            '''
-            name: evolve
-            function: evolve the state
-            param {S}: the state
-            param {evolParam}: the evolution parameters
-            return: the evolved state
-            '''
-            def density_mesolve(value:tuple):
-                '''
-                name: densityMesolve
-                function: evolve the system via mesolve
-                param {value}:(single Hamiltonian,the initial density matrices)
-                return: the evolved state
-                '''
-                Hs,rho0=value
-                #print(len(Co_ps))
-                #print(type(Hs))
-                #print(type(rho0))
-                tlist=np.linspace(0,float(self.sysConstants['tau']),int(self.sysConstants['steps']))
-                finalState=qt.mesolve(Hs,rho0,tlist,c_ops=Co_ps,options=self.sysConstants['options']).states[-1]
-                return finalState
-            
-            def state_mcsolve(value:tuple):
-                '''
-                name: stateMcsolve
-                function: evolve the system via mcsolve
-                param {value}:(single Hamiltonian,the initial states)
-                return: the evolved state
-                '''
-                def single_mc(sampleState):
-                    if len(Co_ps)==0:
-                        state=qt.sesolve(Hs,sampleState,tlist,\
-                            options=self.sysConstants['options'],progress_bar=None).states[-1]
-                    else:
-                        state=qt.mcsolve(Hs,sampleState,tlist,c_ops=Co_ps,ntraj=1,\
-                            options=self.sysConstants['options'],progress_bar=None).states[0,-1]
-                    assert isinstance(state,qt.Qobj), 'The evolved state is not a quantum object'
-                    return state 
-                Hs,rho0s=value
-                tlist=np.linspace(0,float(self.sysConstants['tau']),int(self.sysConstants['steps']))
-                finalState=[single_mc(rho0) for rho0 in rho0s]
-                #finalState=qt.parallel_map(single_mc,rho0s)
-                return finalState
-
-            stateBatch=S
-            #print(stateBatch[0])
-            H_I,H_input=H
-            #print(H_I)
-            #print(type(H_input))
-            values=[(singleH+H_I,singleState) for singleH,singleState in zip(H_input,stateBatch)]
-            #print(type(values[0][1]))
-            if self.isDensity==True:
-                if self.sysConstants['numCpus']==1:
-                    result=[density_mesolve(value) for value in values]
-                else:
-                    result=qt.parallel_map(density_mesolve,values,num_cpus=self.sysConstants['numCpus'])
-            else:
-                if self.sysConstants['numCpus']==1:
-                    result=[state_mcsolve(value) for value in values]
-                else:
-                    result=qt.parallel_map(state_mcsolve,values,num_cpus=self.sysConstants['numCpus'])
-            return result
-
-        def measure(S:list):
-            '''
-            name: measure
-            function: measure the state
-            param {S}: the states
-            return: (the measured state,the measured result)
-            '''
-
-            def density_measure(state:qt.Qobj):
-                '''
-                name: densityMeasure
-                function: measure the system via mesolve
-                param {value}:the initial state
-                return: the measured state,the measured result
-                '''
-                measResults=[]
-                newState=state.copy()
-                for measValues,measOp in zip(self.measOperators[0],self.measOperators[1]):
-                    #print(measValues,measOp)
-                    collapsedStates,probabilities=qtm.measurement_statistics_povm(newState,measOp)
-                    measResult=0.0
-                    for measValue,probability in zip(measValues,probabilities):
-                        measResult+=measValue*probability 
-                    measResults.append(measResult)
-                    if self.measEffect:
-                        newState=0
-                        for collapsedState,probability in zip(collapsedStates,probabilities):
-                            if not collapsedState==None:
-                                newState+=collapsedState*probability
-                return newState,measResults
-
-            def state_measure(state:list):
-                '''
-                name: stateMeasure
-                function: measure the system via mcsolve
-                param {value}:the initial state
-                return: the measured state,the measured result
-                '''
-                measResults=[0.0]*len(self.measOperators[1])
-                for i in range(len(self.measOperators)):
-                    for j in range(len(state)):
-                        #print(state[j])
-                        if self.measEffect:
-                            measIndex,state[j]=qtm.measure_povm(state[j],self.measOperators[1][i])
-                            #print(j)
-                        else:
-                            measIndex,_=qtm.measure_povm(state[j],self.measOperators[1][i])
-                        measResults[i]=measResults[i]+self.measOperators[0][i][int(measIndex)]
-                return state,[value/len(state) for value in measResults]
-
-            stateBatch=S
-            if self.isDensity==True:
-                if self.sysConstants['numCpus']==1:
-                    results=[density_measure(singleState) for singleState in stateBatch]
-                else:
-                    results=qt.parallel_map(density_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
-            else:
-                if self.sysConstants['numCpus']==1:
-                    results=[state_measure(singleState) for singleState in stateBatch]
-                else:
-                    results=qt.parallel_map(state_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
-            measStates=[result[0] for result in results]
-            measResults=[result[1] for result in results]
-            #print(len(measResults))
-            #print(measResults)
-            return measStates,torch.tensor(measResults,dtype=torch.float32)
-
-        
-        def forward_fn(Xs:torch.tensor,state:tuple,weights:tuple):
-            '''
-            name:forward_fn
-            function: the forward function
-            param {Xs}: the input
-            param {state}: the state
-            param {weights}: the weights
-            return: the output
-            '''
-            params,constants=weights
-            if isinstance(params,tuple):
-                params=list(params)
-                constants=list(constants)
-            params,constants=params.copy(),constants.copy()
-            #Input params
-            if 'WIn' in self.inactive:
-                WIn=constants.pop(0)
-            else:
-                WIn=params.pop(0)
-            if 'DeltaIn' in self.inactive:
-                DeltaInParam=constants.pop(0)
-            else:
-                DeltaInParam=params.pop(0)
-            DeltaInPad=constants.pop(0)
-            qubits=DeltaInPad[0]
-            inputParams=(WIn,DeltaInParam,DeltaInPad)
-            #Interaction params
-            if 'J' in self.inactive:
-                J=constants.pop(0)
-            else:
-                J=params.pop(0)
-            #Output params
-            if 'WOut' in self.inactive:
-                WOut=constants.pop(0)
-            else:
-                WOut=params.pop(0)
-            if 'DeltaOut' in self.inactive:
-                DeltaOutParam=constants.pop(0)
-            else:
-                DeltaOutParam=params.pop(0)
-            
-            if self.measOperators==None:
-                self.measOperators=build_measure_operators(qubits)
-            #print(len(self.measOperators[0]))
-            S,=state
-            #print(len(S))
-            #print(S[0])
-            Ys=[]
-            H_I,Co_ps=build_int_operators(J,qubits)
-
-            for X in Xs:
-                H_input=encode_input(X,inputParams,qubits)
-                S=evolve(S,(H_I,H_input),Co_ps)
-                #print(S[0][0])
-                #print(len(S))
-                S,measResult=measure(S)
-                Y=torch.mm(measResult,WOut)+DeltaOutParam
-                Ys.append(Y)
-            return torch.cat(Ys,dim=0),(S,)
-        return forward_fn
+    @torch.no_grad()
+    def __predict_fun(self,prefix:torch.Tensor,net:StandardSNN,numPreds:int=1):
+        '''
+        name: predict_fun
+        function: predict the next numPreds
+        param {prefix}: the prefix
+        param {numPreds}: the number of prediction
+        param {net}: the network
+        return: the prediction
+        '''
+        state=net.begin_state(batch_size=1)
+        outputs=[pre for pre in prefix[0:self.interval]]
+        get_input=lambda: torch.unsqueeze(outputs[-self.interval],dim=0)
+        #warm-up
+        for Y in prefix[self.interval:]:
+            _,state=net(get_input(),state)
+            outputs.append(Y)
+        for _ in range(numPreds):
+            Y,state=net(get_input(),state)
+            outputs.append(Y)
+        return self.outputTransoform(outputs)
 
     def get_predict_fun(self,outputTransoform:Callable=lambda x:x,\
                         interval:int=1):
@@ -568,29 +593,9 @@ class QuantumSystemFunction:
         param{interval}: the interval of prediction
         return: the function
         '''        
+        self.interval=interval
         self.outputTransoform=outputTransoform
-        @torch.no_grad()
-        def predict_fun(prefix:torch.Tensor,net:StandardSNN,numPreds:int=1):
-            '''
-            name: predict_fun
-            function: predict the next numPreds
-            param {prefix}: the prefix
-            param {numPreds}: the number of prediction
-            param {net}: the network
-            return: the prediction
-            '''
-            state=net.begin_state(batch_size=1)
-            outputs=[pre for pre in prefix[0:interval]]
-            get_input=lambda: torch.unsqueeze(outputs[-interval],dim=0)
-            #warm-up
-            for Y in prefix[interval:]:
-                _,state=net(get_input(),state)
-                outputs.append(Y)
-            for _ in range(numPreds):
-                Y,state=net(get_input(),state)
-                outputs.append(Y)
-            return self.outputTransoform(outputs)
-        return predict_fun
+        return self.__predict_fun
 
     @staticmethod
     def grad_clipping(net, theta):
