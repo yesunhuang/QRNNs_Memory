@@ -497,27 +497,19 @@ class QuantumSystemFunction:
         if self.measOperators==None:
             self.measOperators=self.__build_measure_operators(qubits)
         S,=state
-        Ys=[]
+        #Ys=[]
+        measResults=[]
         H_I,Co_ps=self.__build_int_operators(J,qubits)
-        #timeMetric=hp.Accumulator(4)
         for X in Xs:
-            #timer=hp.Timer()
             H_input=self.__encode_input(X,inputParams,qubits)
-            #t1=timer.stop()
-            #timer.start()
             S=self.__evolve(S,(H_I,H_input),Co_ps)
-            #t2=timer.stop()
-            #timer.start()
             S,measResult=self.__measure(S)
-            #t3=timer.stop()
-            #timer.start()
-            Y=torch.mm(measResult,WOut)+DeltaOutParam
-            #t4=timer.stop()
-            #timeMetric.add(t1,t2,t3,t4)
-            Ys.append(Y)
-        #for i in range(4):
-            #print(f'{i+1}: {timeMetric[i]:f}')
-        return torch.cat(Ys,dim=0),(S,)
+            #Y=torch.mm(measResult,WOut)+DeltaOutParam
+            #Ys.append(Y)
+            measResults.append(measResult)
+        Ys=torch.mm(torch.cat(measResults,dim=0),WOut)+DeltaOutParam
+        #return torch.cat(Ys,dim=0),(S,)
+        return Ys,(S,)
 
     def get_forward_fn_fun(self,sysConstants:dict={},samples:int=1,measEffect:bool=False):
         '''
