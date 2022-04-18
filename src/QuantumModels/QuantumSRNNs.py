@@ -453,7 +453,7 @@ class QuantumSystemFunction:
         #print(measResults)
         return measStates,torch.tensor(measResults,dtype=torch.float32)
     
-    def __sub_forward_fn(self,valuePack:tuple):
+    def sub_forward_fn(self,valuePack:tuple):
         '''
         name: sub_forward_fn
         function: for batch parallel
@@ -473,7 +473,10 @@ class QuantumSystemFunction:
             #Y=torch.mm(measResult,WOut)+DeltaOutParam
             #Ys.append(Y)
             measResults.append(measResult)
-        return torch.cat(measResults,dim=0).reshape(len(measResults),XSubBatch.shape[1],-1)
+        results=torch.cat(measResults,dim=0).reshape(len(measResults),XSubBatch.shape[1],-1)
+        #print(results.shape)
+        #assert results[1,0,0]==measResults[1][0,0],'The result is not correct'
+        return results
     def __forward_fn(self,Xs:torch.tensor,state:tuple,weights:tuple):
         '''
         name:forward_fn
@@ -522,13 +525,16 @@ class QuantumSystemFunction:
         H_I,Co_ps=self.__build_int_operators(J,qubits)
         if self.sysConstants['numCpus']==1:
             value_pack=Xs,inputParams,qubits,S,H_I,Co_ps
-            measResults=self.__sub_forward_fn(value_pack)
+            measResults=self.sub_forward_fn(value_pack)
         else:
             subBatch=max(1,Xs.shape[1]//self.sysConstants['numCpus'])
             XSubBatchs=list(Xs.split(subBatch,dim=1))
+            #print(len(XSubBatchs))
             value_packs=[(XSubBatch,inputParams,qubits,S,H_I,Co_ps) for XSubBatch in XSubBatchs]
-            measResults=qt.parallel_map(self.__sub_forward_fn,value_packs,num_cpus=self.sysConstants['numCpus'])
+            measResults=qt.parallel_map(self.sub_forward_fn,value_packs,num_cpus=self.sysConstants['numCpus'])
             measResults=torch.cat(measResults,dim=1)
+            assert measResults.shape==torch.Size([Xs.shape[0],Xs.shape[1],len(self.outputQubits)]),\
+                'The shape of the measResults is wrong'
         Ys=torch.mm(measResults.reshape(-1,measResults.shape[-1]),WOut)+DeltaOutParam
         #return torch.cat(Ys,dim=0),(S,)
         return Ys,(S,)

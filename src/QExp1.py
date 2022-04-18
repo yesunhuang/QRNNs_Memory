@@ -29,7 +29,7 @@ if __name__=='__main__':
     ## Parameters
     testSetRatio=0.2
     numStep=10
-    batchSize=4
+    batchSize=16
     currentPath=os.getcwd()
     savepath=os.path.join(currentPath,'data\HenonMap\Exp')
     filename='QExp1.csv'
@@ -61,7 +61,7 @@ if __name__=='__main__':
     inputQubits=outputQubits=[i for i in range(qubits)]
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
     inactive=['WIn','DeltaIn','J']
-    sysConstants={'Dissipation':None,'tau':pi,'steps':3}
+    sysConstants={'Dissipation':None,'tau':0.5*pi,'steps':3,'numCpus':4}
     measEffect=True
 if __name__=='__main__':
     ## print parameters
@@ -102,11 +102,15 @@ if __name__=='__main__':
 ## Initial loss
 if __name__=='__main__':
     l_epochs=[]
+    timer=hp.Timer()
     train_l=QuantumSystemFunction.evaluate_accuracy(net,trainIter,lossFunc,False)
+    t1=timer.stop()
+    timer.start()
     test_l=QuantumSystemFunction.evaluate_accuracy(net,testIter,lossFunc,False)
+    t2=timer.stop()
     l_epochs.append([train_l,test_l])
-    print('Initial Train Loss:',train_l)
-    print('Initial Test Loss:',test_l)
+    print(f'Initial Train Loss: {train_l:f}, Time Cost: {t1:f}s')
+    print(f'Initial Test Loss: {test_l:f}, Time Cost: {t2:f}s')
     ## Training
     ## prediction
     predict = lambda prefix: predict_fun(prefix,net, numPreds=9)
