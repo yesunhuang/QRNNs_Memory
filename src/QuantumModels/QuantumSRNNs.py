@@ -452,7 +452,28 @@ class QuantumSystemFunction:
         #print(len(measResults))
         #print(measResults)
         return measStates,torch.tensor(measResults,dtype=torch.float32)
-
+    
+    def __sub_forward_fn(self,valuePack:tuple):
+        '''
+        name: sub_forward_fn
+        function: for batch parallel
+        param {xSubBatch}: the input
+        param {inputParams}: the input parameters
+        param {qubits}: the number of qubits
+        param {S}: the states
+        param {H_I}: the interaction operators
+        param {Co_ps}: the collapse operators
+        '''
+        XSubBatch,inputParams,qubits,S,H_I,Co_ps=valuePack
+        measResults=[]
+        for X in XSubBatch:
+            H_input=self.__encode_input(X,inputParams,qubits)
+            S=self.__evolve(S,(H_I,H_input),Co_ps)
+            S,measResult=self.__measure(S)
+            #Y=torch.mm(measResult,WOut)+DeltaOutParam
+            #Ys.append(Y)
+            measResults.append(measResult)
+        return torch.cat(measResults,dim=0).reshape(len(measResults),XSubBatch.shape[1],-1)
     def __forward_fn(self,Xs:torch.tensor,state:tuple,weights:tuple):
         '''
         name:forward_fn
@@ -498,16 +519,17 @@ class QuantumSystemFunction:
             self.measOperators=self.__build_measure_operators(qubits)
         S,=state
         #Ys=[]
-        measResults=[]
         H_I,Co_ps=self.__build_int_operators(J,qubits)
-        for X in Xs:
-            H_input=self.__encode_input(X,inputParams,qubits)
-            S=self.__evolve(S,(H_I,H_input),Co_ps)
-            S,measResult=self.__measure(S)
-            #Y=torch.mm(measResult,WOut)+DeltaOutParam
-            #Ys.append(Y)
-            measResults.append(measResult)
-        Ys=torch.mm(torch.cat(measResults,dim=0),WOut)+DeltaOutParam
+        if self.sysConstants['numCpus']==1:
+            value_pack=Xs,inputParams,qubits,S,H_I,Co_ps
+            measResults=self.__sub_forward_fn(value_pack)
+        else:
+            subBatch=max(1,Xs.shape[1]//self.sysConstants['numCpus'])
+            XSubBatchs=list(Xs.split(subBatch,dim=1))
+            value_packs=[(XSubBatch,inputParams,qubits,S,H_I,Co_ps) for XSubBatch in XSubBatchs]
+            measResults=qt.parallel_map(self.__sub_forward_fn,value_packs,num_cpus=self.sysConstants['numCpus'])
+            measResults=torch.cat(measResults,dim=1)
+        Ys=torch.mm(measResults.reshape(-1,measResults.shape[-1]),WOut)+DeltaOutParam
         #return torch.cat(Ys,dim=0),(S,)
         return Ys,(S,)
 
