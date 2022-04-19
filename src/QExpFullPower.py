@@ -1,5 +1,5 @@
 '''
-Name: QExp1
+Name: QExpFullPower
 Desriptption: Experiment One 
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
