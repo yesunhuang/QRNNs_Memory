@@ -23,14 +23,15 @@ if __name__=='__main__':
     from QuantumModels.QuantumSRNNs import QuantumSRNN
     from QuantumModels.QuantumSRNNs import QuantumSystemFunction
     from GradientFreeOptimizers.CostFunc import GradFreeMSELoss
+    from GradientFreeOptimizers.Optimizers import MCSOptimizer
     import GradientFreeOptimizers.Helpers as hp
 
 if __name__=='__main__':
     # Data Iter
     ## Parameters
     testSetRatio=0.2
-    numStep=5
-    batchSize=32
+    numStep=10
+    batchSize=16
     currentPath=os.getcwd()
     savepath=os.path.join(currentPath,'data','HenonMap','Exp')
     filename='QExp1.csv'
@@ -62,8 +63,8 @@ if __name__=='__main__':
     inputQubits=outputQubits=[i for i in range(qubits)]
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
     rescale={'WIn':1,'DeltaIn':1,'J':torch.tensor([0.5])}
-    inactive=['WIn','DeltaIn','J']
-    sysConstants={'Dissipation':None,'tau':4.0,'steps':3,'numCpus':24}
+    inactive=[]
+    sysConstants={'Dissipation':None,'tau':4.0,'steps':3,'numCpus':16}
     measEffect=True
 
 if __name__=='__main__':
@@ -97,13 +98,16 @@ if __name__=='__main__':
 # Train the network
 if __name__=='__main__': 
     ## Parameters
-    num_epochs, lr = 10, 1
+    num_epochs= 10
     step_epochs=1
     ## Loss function
     lossFunc=GradFreeMSELoss(net)
     ## Optimizer
-    trainer = torch.optim.SGD(net.params, lr=lr)
+    #trainer = torch.optim.SGD(net.params, lr=lr)
     #scheduler=torch.optim.lr_scheduler.StepLR(trainer,step_size=100,gamma=0.1)
+    maxLevyStepSize=[1.0,1.0,0.1,1.0,1.0]
+    mcs=MCSOptimizer(net.params,lossFunc,trainIter,\
+        maxLevyStepSize=maxLevyStepSize,randInit=True)
 ## Initial loss
 if __name__=='__main__':
     l_epochs=[]
@@ -122,8 +126,7 @@ if __name__=='__main__':
     ## train and predict
     for epoch in range(num_epochs):
         timer=hp.Timer()
-        trainLoss, speed = QuantumSystemFunction.train_epoch(
-            net, trainIter, lossFunc, trainer, False)
+        trainLoss, _=mcs.step()
         testLoss=QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, False)
         timeEpoch=timer.stop()
         if (epoch + 1) % step_epochs == 0:
@@ -132,7 +135,10 @@ if __name__=='__main__':
         l_epochs.append([trainLoss,testLoss])
         #scheduler.step()
     testLoss=QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, False)
-    print(f'TestLoss {testLoss:f}, {speed:f} point/s')
+    print(f'TestLoss {testLoss:f}')
+if '__name__'=='__main__':
+    ## Parameters
+    print(net.params)
 
 if PREDICTION_TEST:
     # Prediction
@@ -168,8 +174,5 @@ if PREDICTION_TEST:
     plt.legend()
     plt.show()
 
-if '__name__'=='__main__':
-    ## Parameters
-    print(net.params)
 
 
