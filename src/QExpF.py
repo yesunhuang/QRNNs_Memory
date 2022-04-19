@@ -1,5 +1,5 @@
 '''
-Name: QExpFullPower
+Name: QExpF
 Desriptption: Experiment One 
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
@@ -10,7 +10,8 @@ Date: 2022-04-17 20:40:50
 #import all the things we need
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-
+PREDICTION_TEST=False
+GENERATE_DATA=False
 import matplotlib.pyplot as plt
 import torch
 from torch import pi
@@ -28,17 +29,17 @@ if __name__=='__main__':
     # Data Iter
     ## Parameters
     testSetRatio=0.2
-    numStep=10
-    batchSize=16
+    numStep=5
+    batchSize=32
     currentPath=os.getcwd()
-    savepath=os.path.join(currentPath,'data\HenonMap\Exp')
+    savepath=os.path.join(currentPath,'data','HenonMap','Exp')
     filename='QExp1.csv'
     ## Generate Data
-    
+if GENERATE_DATA:
     hmap=HenonMapDataGen(savepath=savepath)
     hmap(1000)
     hmap.save_to_CSV(filename)
-    
+if __name__=='__main__':   
     ## Read the data
     hmap=HenonMapDataGen(savepath=savepath)
     hmap.read_from_CSV(filename)
@@ -56,18 +57,21 @@ if __name__=='__main__':
     # Model
     ## Parameters
     inputSize=outputSize=1
-    qubits=4
-    activation=[0,2]
+    qubits=6
+    activation=[0,2,4]
     inputQubits=outputQubits=[i for i in range(qubits)]
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
+    rescale={'WIn':1,'DeltaIn':1,'J':torch.tensor([0.5])}
     inactive=['WIn','DeltaIn','J']
-    sysConstants={'Dissipation':None,'tau':0.5*pi,'steps':3,'numCpus':4}
+    sysConstants={'Dissipation':None,'tau':4.0,'steps':3,'numCpus':24}
     measEffect=True
+
 if __name__=='__main__':
     ## print parameters
     print('Input Qubits:',inputQubits)
     print('Output Qubits:',outputQubits)
     print('InterQPairs=',interQPairs)
+
 if __name__=='__main__':
     ## Get neccesary functions
     srnnTestSup=QuantumSystemFunction()
@@ -76,7 +80,8 @@ if __name__=='__main__':
     get_params=srnnTestSup.get_get_params_fun(inputQubits=inputQubits,\
                                             outputQubits=outputQubits,\
                                             interQPairs=interQPairs,\
-                                            inactive=inactive)
+                                            inactive=inactive,\
+                                            rescale=rescale)
     rnn=srnnTestSup.get_forward_fn_fun(measEffect=measEffect,\
                                         sysConstants=sysConstants)
     predict_fun=srnnTestSup.get_predict_fun(outputTransoform=transform)
@@ -92,7 +97,7 @@ if __name__=='__main__':
 # Train the network
 if __name__=='__main__': 
     ## Parameters
-    num_epochs, lr = 10, 0.1
+    num_epochs, lr = 10, 1
     step_epochs=1
     ## Loss function
     lossFunc=GradFreeMSELoss(net)
@@ -129,6 +134,7 @@ if __name__=='__main__':
     testLoss=QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, False)
     print(f'TestLoss {testLoss:f}, {speed:f} point/s')
 
+if PREDICTION_TEST:
     # Prediction
     ## One-step prediction
     X,Y=next(iter(testIter))
@@ -162,6 +168,7 @@ if __name__=='__main__':
     plt.legend()
     plt.show()
 
+if '__name__'=='__main__':
     ## Parameters
     print(net.params)
 
