@@ -17,11 +17,12 @@ from torch import pi
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
-PREDICTION_TEST=False
 GENERATE_DATA=False
-SAVE_NETWORK=True
-LOAD_NETWORK=False
-TRAIN_NETWORK=True
+SAVE_NETWORK=False
+TRAIN_NETWORK=False
+LOAD_NETWORK=True
+PREDICTION_TEST=True
+
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
