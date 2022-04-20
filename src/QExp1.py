@@ -17,11 +17,11 @@ from torch import pi
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
-PREDICTION_TEST=False
+PREDICTION_TEST=True
 GENERATE_DATA=False
-SAVE_NETWORK=True
-LOAD_NETWORK=False
-TRAIN_NETWORK=True
+SAVE_NETWORK=False
+LOAD_NETWORK=True
+TRAIN_NETWORK=False
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -90,9 +90,12 @@ if LOAD_NETWORK and __name__=='__main__':
     
     isDensity=netData['isDensity']
     interQPairs=netData['interQPairs']
+    rescale=netData['rescale']
     inactive=netData['inactive']
     sysConstants=netData['sysConstants']
     measEffect=netData['measEffect']
+
+    sysConstants['numCpus']=1
 
 elif __name__=='__main__':
     # Model
@@ -152,14 +155,15 @@ if TRAIN_NETWORK and __name__=='__main__':
     else:
         num_epochs, lr = 100, 0.05
     step_epochs=10
-    ## Loss function
-    lossFunc=GradFreeMSELoss(net)
     ## Optimizer
     trainer = torch.optim.SGD(net.params, lr=lr)
     #scheduler=torch.optim.lr_scheduler.StepLR(trainer,step_size=100,gamma=0.1)
-    ## Initial loss
 
 if __name__=='__main__':
+    ## Loss function
+    lossFunc=GradFreeMSELoss(net)
+
+    ## Initial loss
     if LOAD_NETWORK:
         l_epochs=netData['Loss']
     else:
@@ -225,7 +229,7 @@ if PREDICTION_TEST and __name__=='__main__':
 
     ## Multi Step Prediction
     prefixSize=10
-    totalSize=40
+    totalSize=20
     testShift=int(len(hmap)*(1-testSetRatio))
     preX,preY=hmap.data_as_tensor
     preX,preY=torch.unsqueeze(preX[testShift:testShift+prefixSize],-1),torch.unsqueeze(preY[testShift:testShift+totalSize-1],-1)
