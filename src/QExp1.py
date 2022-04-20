@@ -102,9 +102,10 @@ elif __name__=='__main__':
     activation=[0,2]
     inputQubits=outputQubits=[i for i in range(qubits)]
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
+    rescale={'WIn':1,'J':torch.tensor([0.5])}
     inactive=['WIn','DeltaIn','J']
-    sysConstants={'Dissipation':None,'tau':0.5*pi,'steps':3,'numCpus':4}
-    measEffect=True
+    sysConstants={'Dissipation':None,'tau':4,'steps':3,'numCpus':16}
+    measEffect=False
 
 if __name__=='__main__':
     ## print parameters
@@ -120,7 +121,8 @@ if __name__=='__main__':
     get_params=srnnTestSup.get_get_params_fun(inputQubits=inputQubits,\
                                             outputQubits=outputQubits,\
                                             interQPairs=interQPairs,\
-                                            inactive=inactive)
+                                            inactive=inactive,\
+                                            rescale=rescale)
     rnn=srnnTestSup.get_forward_fn_fun(measEffect=measEffect,\
                                         sysConstants=sysConstants)
     predict_fun=srnnTestSup.get_predict_fun(outputTransoform=transform)
@@ -148,8 +150,8 @@ if TRAIN_NETWORK and __name__=='__main__':
         num_epochs=netData['OptimizerConstant'][0]
         lr=netData['OptimizerConstant'][1]
     else:
-        num_epochs, lr = 10, 0.1
-    step_epochs=1
+        num_epochs, lr = 100, 0.05
+    step_epochs=10
     ## Loss function
     lossFunc=GradFreeMSELoss(net)
     ## Optimizer
@@ -177,15 +179,16 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## prediction
     predict = lambda prefix: predict_fun(prefix,net, numPreds=9)
     ## train and predict
+    timer=hp.Timer()
     for epoch in range(num_epochs):
-        timer=hp.Timer()
         trainLoss, speed = QuantumSystemFunction.train_epoch(
             net, trainIter, lossFunc, trainer, False)
         testLoss=QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, False)
-        timeEpoch=timer.stop()
         if (epoch + 1) % step_epochs == 0:
+            timeEpoch=timer.stop()
             print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {trainLoss:.4f}, Test Loss: {testLoss:.4f},\
                 Time: {timeEpoch:.4f}s') 
+            timer.start()
         l_epochs.append([trainLoss,testLoss])
         #scheduler.step()
     testLoss=QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, False)
