@@ -10,12 +10,18 @@ Date: 2022-04-17 20:40:50
 #import all the things we need
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-
 import matplotlib.pyplot as plt
 import torch
 from torch import pi
+#A helper function
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
+#Some constants
+PREDICTION_TEST=False
+GENERATE_DATA=False
+SAVE_NETWORK=True
+LOAD_NETWORK=False
+TRAIN_NETWORK=True
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -24,26 +30,33 @@ if __name__=='__main__':
     from GradientFreeOptimizers.CostFunc import GradFreeMSELoss
     import GradientFreeOptimizers.Helpers as hp
 
+    #Save path:
+if __name__=='__main__':
+    currentPath=os.getcwd()
+    dataSavepath=os.path.join(currentPath,'data','HenonMap','Exp')
+    netSavepath=os.path.join(currentPath,'TrainedNet','Exp')
+
 if __name__=='__main__':
     # Data Iter
     ## Parameters
     testSetRatio=0.2
     numStep=10
     batchSize=16
-    currentPath=os.getcwd()
-    savepath=os.path.join(currentPath,'data\HenonMap\Exp')
     filename='QExp1.csv'
+
     ## Generate Data
-    
-    hmap=HenonMapDataGen(savepath=savepath)
+if GENERATE_DATA and __name__=='__main__':
+    hmap=HenonMapDataGen(savepath=dataSavepath)
     hmap(1000)
     hmap.save_to_CSV(filename)
-    
+
+if __name__=='__main__':    
     ## Read the data
-    hmap=HenonMapDataGen(savepath=savepath)
+    hmap=HenonMapDataGen(savepath=dataSavepath)
     hmap.read_from_CSV(filename)
     ## Get the Iter
     trainIter,testIter=hmap.get_data_iter(testSetRatio,numStep,batchSize,mask=0,shuffle=False)
+    
     ## Print information
 if __name__=='__main__':
     print(hmap)
@@ -52,7 +65,36 @@ if __name__=='__main__':
     X,Y=next(iter(testIter))
     print('Test Data Size:',len(testIter))
 
-if __name__=='__main__':
+   # Load the network
+    ''' 
+   netData={'NetParams':net.params,'NetConstants':net.constants,\
+            'inputSize':inputSize,'qubits':qubits,'outputSize':outputSize,\
+            'activation':activation,'isDensity':True,\
+            'inputQubits':inputQubits,'outputQubits':outputQubits,\
+            'interQPairs':interQPairs,'inactive':inactive,\
+            'rescale':{},'isRandom':True,\
+            'sysConstants':sysConstants,'samples':1,'measEffect':measEffect,\
+            'Loss':l_epochs,'OptimizerConstant':(num_epochs,lr)}
+    '''
+if LOAD_NETWORK and __name__=='__main__':
+    filename='QExp1.pt'
+    netData=torch.load(os.path.join(netSavepath,filename))
+
+    inputSize=netData['inputSize']
+    outputSize=netData['outputSize']
+    qubits=netData['qubits']
+    
+    inputQubits=netData['inputQubits']
+    outputQubits=netData['outputQubits']
+    activation=netData['activation']
+    
+    isDensity=netData['isDensity']
+    interQPairs=netData['interQPairs']
+    inactive=netData['inactive']
+    sysConstants=netData['sysConstants']
+    measEffect=netData['measEffect']
+
+elif __name__=='__main__':
     # Model
     ## Parameters
     inputSize=outputSize=1
@@ -63,11 +105,13 @@ if __name__=='__main__':
     inactive=['WIn','DeltaIn','J']
     sysConstants={'Dissipation':None,'tau':0.5*pi,'steps':3,'numCpus':4}
     measEffect=True
+
 if __name__=='__main__':
     ## print parameters
     print('Input Qubits:',inputQubits)
     print('Output Qubits:',outputQubits)
     print('InterQPairs=',interQPairs)
+
 if __name__=='__main__':
     ## Get neccesary functions
     srnnTestSup=QuantumSystemFunction()
@@ -82,26 +126,42 @@ if __name__=='__main__':
     predict_fun=srnnTestSup.get_predict_fun(outputTransoform=transform)
 
     net=QuantumSRNN(inputSize,qubits,outputSize,get_params,init_rnn_state,rnn)
-## Test prediction
+
+if LOAD_NETWORK and __name__=='__main__':
+    net.params=netData['NetParams']
+    net.constants=netData['NetConstants']
+
+    ## Test prediction
 if __name__=='__main__':
     state=net.begin_state(batchSize)
     Y,newState=net(X,state)
     print(Y.shape, len(newState), newState[0][0].shape)
 
+if not LOAD_NETWORK and not TRAIN_NETWORK:
+    print('The network is not trained, are you sure to move on?')
 
-# Train the network
-if __name__=='__main__': 
+    # Train the network
+if TRAIN_NETWORK and __name__=='__main__':
     ## Parameters
-    num_epochs, lr = 10, 0.1
+    if LOAD_NETWORK:
+        print('Are you sure to train the trained network?')
+        num_epochs=netData['OptimizerConstant'][0]
+        lr=netData['OptimizerConstant'][1]
+    else:
+        num_epochs, lr = 10, 0.1
     step_epochs=1
     ## Loss function
     lossFunc=GradFreeMSELoss(net)
     ## Optimizer
     trainer = torch.optim.SGD(net.params, lr=lr)
     #scheduler=torch.optim.lr_scheduler.StepLR(trainer,step_size=100,gamma=0.1)
-## Initial loss
+    ## Initial loss
+
 if __name__=='__main__':
-    l_epochs=[]
+    if LOAD_NETWORK:
+        l_epochs=netData['Loss']
+    else:
+        l_epochs=[]
     timer=hp.Timer()
     train_l=QuantumSystemFunction.evaluate_accuracy(net,trainIter,lossFunc,False)
     t1=timer.stop()
@@ -111,7 +171,9 @@ if __name__=='__main__':
     l_epochs.append([train_l,test_l])
     print(f'Initial Train Loss: {train_l:f}, Time Cost: {t1:f}s')
     print(f'Initial Test Loss: {test_l:f}, Time Cost: {t2:f}s')
+
     ## Training
+if TRAIN_NETWORK and __name__=='__main__':
     ## prediction
     predict = lambda prefix: predict_fun(prefix,net, numPreds=9)
     ## train and predict
@@ -123,12 +185,27 @@ if __name__=='__main__':
         timeEpoch=timer.stop()
         if (epoch + 1) % step_epochs == 0:
             print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {trainLoss:.4f}, Test Loss: {testLoss:.4f},\
-                 Time: {timeEpoch:.4f}s') 
+                Time: {timeEpoch:.4f}s') 
         l_epochs.append([trainLoss,testLoss])
         #scheduler.step()
     testLoss=QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, False)
     print(f'TestLoss {testLoss:f}, {speed:f} point/s')
 
+    ## Save the network
+if SAVE_NETWORK and __name__=='__main__':
+    ## Parameters
+    filename='QExp1.pt'
+    netData={'NetParams':net.params,'NetConstants':net.constants,\
+            'inputSize':inputSize,'qubits':qubits,'outputSize':outputSize,\
+            'activation':activation,'isDensity':True,\
+            'inputQubits':inputQubits,'outputQubits':outputQubits,\
+            'interQPairs':interQPairs,'inactive':inactive,\
+            'rescale':{},'isRandom':True,\
+            'sysConstants':sysConstants,'samples':1,'measEffect':measEffect,\
+            'Loss':l_epochs,'OptimizerConstant':(num_epochs,lr)}
+    torch.save(netData,os.path.join(netSavepath,filename))
+
+if PREDICTION_TEST and __name__=='__main__':
     # Prediction
     ## One-step prediction
     X,Y=next(iter(testIter))
@@ -162,7 +239,6 @@ if __name__=='__main__':
     plt.legend()
     plt.show()
 
-    ## Parameters
-    print(net.params)
+
 
 

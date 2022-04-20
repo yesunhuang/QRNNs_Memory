@@ -9,6 +9,7 @@ Date: 2022-04-06 10:18:00
 '''
 
 #import everything
+from unittest import result
 import torch
 from torch import pi
 from collections.abc import Callable
@@ -273,7 +274,7 @@ class QuantumSystemFunction:
             collapsedStates,probabilities=qtm.measurement_statistics_povm(newState,measOp)
             measResult=0.0
             for measValue,probability in zip(measValues,probabilities):
-                measResult+=measValue*probability 
+                measResult+=measValue*np.real(probability) 
             measResults.append(measResult)
             if self.measEffect:
                 newState=0
@@ -450,7 +451,8 @@ class QuantumSystemFunction:
         measStates=[result[0] for result in results]
         measResults=[result[1] for result in results]
         #print(len(measResults))
-        #print(measResults)
+        #print(type(measResults[0][0]))
+        #print(type(measStates[0]))
         return measStates,torch.tensor(measResults,dtype=torch.float32)
     
     def sub_forward_fn(self,valuePack:tuple):
