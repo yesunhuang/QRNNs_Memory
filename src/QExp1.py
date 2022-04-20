@@ -17,11 +17,11 @@ from torch import pi
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
-PREDICTION_TEST=True
+PREDICTION_TEST=False
 GENERATE_DATA=False
-SAVE_NETWORK=False
-LOAD_NETWORK=True
-TRAIN_NETWORK=False
+SAVE_NETWORK=True
+LOAD_NETWORK=False
+TRAIN_NETWORK=True
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -153,7 +153,7 @@ if TRAIN_NETWORK and __name__=='__main__':
         num_epochs=netData['OptimizerConstant'][0]
         lr=netData['OptimizerConstant'][1]
     else:
-        num_epochs, lr = 100, 0.05
+        num_epochs, lr = 100, 0.1
     step_epochs=10
     ## Optimizer
     trainer = torch.optim.SGD(net.params, lr=lr)
