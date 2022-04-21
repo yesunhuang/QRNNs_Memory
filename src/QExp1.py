@@ -19,9 +19,9 @@ def transform(Xs):
 #Some constants
 GENERATE_DATA=False
 SAVE_NETWORK=False
-TRAIN_NETWORK=False
-LOAD_NETWORK=True
-PREDICTION_TEST=True
+TRAIN_NETWORK=True
+LOAD_NETWORK=False
+PREDICTION_TEST=False
 
 
 if __name__=='__main__':
@@ -108,7 +108,7 @@ elif __name__=='__main__':
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
     rescale={'WIn':1,'J':torch.tensor([0.5])}
     inactive=['WIn','DeltaIn','J']
-    sysConstants={'Dissipation':None,'tau':4,'steps':3,'numCpus':16}
+    sysConstants={'Dissipation':None,'tau':4,'steps':3,'numCpus':1}
     measEffect=False
 
 if __name__=='__main__':

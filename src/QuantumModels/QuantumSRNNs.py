@@ -428,10 +428,8 @@ class QuantumSystemFunction:
         #print(type(values[0][1]))
         if self.isDensity==True:
             result=[self.__density_mesolve(value) for value in values]
-            #result=qt.parallel_map(self.__density_mesolve,values,num_cpus=self.sysConstants['numCpus'])
         else:
             result=[self.__state_mcsolve(value) for value in values]
-            #result=qt.parallel_map(self.__state_mcsolve,values,num_cpus=self.sysConstants['numCpus'])
         return result
 
     def __measure(self,S:list):
@@ -444,10 +442,8 @@ class QuantumSystemFunction:
         stateBatch=S
         if self.isDensity==True:
             results=[self.__density_measure(singleState) for singleState in stateBatch]
-            #results=qt.parallel_map(self.__density_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
         else:
             results=[self.__state_measure(singleState) for singleState in stateBatch]
-            #results=qt.parallel_map(self.__state_measure,stateBatch,num_cpus=self.sysConstants['numCpus'])
         measStates=[result[0] for result in results]
         measResults=[result[1] for result in results]
         #print(len(measResults))
@@ -474,8 +470,9 @@ class QuantumSystemFunction:
             S,measResult=self.__measure(S)
             #Y=torch.mm(measResult,WOut)+DeltaOutParam
             #Ys.append(Y)
-            measResults.append(measResult)
-        results=torch.cat(measResults,dim=0).reshape(len(measResults),XSubBatch.shape[1],-1)
+            #print(measResult.shape)
+            measResults.append(torch.unsqueeze(measResult,0))
+        results=torch.cat(measResults,dim=0)
         #print(results.shape)
         #assert results[1,0,0]==measResults[1][0,0],'The result is not correct'
         return results
