@@ -19,9 +19,9 @@ def transform(Xs):
 #Some constants
 GENERATE_DATA=False
 SAVE_NETWORK=False
-TRAIN_NETWORK=True
-LOAD_NETWORK=False
-PREDICTION_TEST=False
+TRAIN_NETWORK=False
+LOAD_NETWORK=True
+PREDICTION_TEST=True
 
 
 if __name__=='__main__':
@@ -167,6 +167,8 @@ if __name__=='__main__':
     ## Initial loss
     if LOAD_NETWORK:
         l_epochs=netData['Loss']
+        print(f'Saved Train Loss: {l_epochs[-1][0]:f}')
+        print(f'Saved Test Loss: {l_epochs[-1][1]:f}')
     else:
         l_epochs=[]
     timer=hp.Timer()
