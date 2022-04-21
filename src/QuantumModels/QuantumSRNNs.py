@@ -9,7 +9,6 @@ Date: 2022-04-06 10:18:00
 '''
 
 #import everything
-from unittest import result
 import torch
 from torch import pi
 from collections.abc import Callable

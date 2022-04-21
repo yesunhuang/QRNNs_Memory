@@ -108,7 +108,7 @@ elif __name__=='__main__':
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
     rescale={'WIn':1,'J':torch.tensor([0.5])}
     inactive=['WIn','DeltaIn','J']
-    sysConstants={'Dissipation':None,'tau':4,'steps':3,'numCpus':1}
+    sysConstants={'Dissipation':None,'tau':4,'steps':3,'numCpus':16}
     measEffect=False
 
 if __name__=='__main__':

@@ -17,10 +17,10 @@ def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-LOAD_NETWORK=False
-PREDICTION_TEST=False
-TRAIN_NETWORK=True
-SAVE_NETWORK=True
+TRAIN_NETWORK=False
+SAVE_NETWORK=False
+LOAD_NETWORK=True
+PREDICTION_TEST=True
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -85,6 +85,8 @@ if LOAD_NETWORK and __name__=='__main__':
     sysConstants=netData['sysConstants']
     measEffect=netData['measEffect']  
 
+    sysConstants['numCpus']=1
+
 elif __name__=='__main__':
     # Model
     ## Parameters
@@ -147,17 +149,15 @@ if  TRAIN_NETWORK and __name__=='__main__':
         maxLevyStepSize=[0.2]*5
         nestNum=40
     step_epochs=5
-    ## Loss function
-    lossFunc=GradFreeMSELoss(net)
-    ## Optimizer
-    mcs=MCSOptimizer(net.params,lossFunc,trainIter,nestNum=nestNum,\
-        maxLevyStepSize=maxLevyStepSize,randInit=True,\
-            epochToGeneration=lambda x:max(int(x/20),1))
 
 ## Initial loss
 if __name__=='__main__':
+    ## Loss function
+    lossFunc=GradFreeMSELoss(net)
     if LOAD_NETWORK:
         l_epochs=netData['Loss']
+        print(f'Saved Train Loss: {l_epochs[-1][0]:f}')
+        print(f'Saved Test Loss: {l_epochs[-1][1]:f}')
     else:
         l_epochs=[]
     timer=hp.Timer()
@@ -172,6 +172,10 @@ if __name__=='__main__':
     
     ## Training
 if TRAIN_NETWORK and __name__=='__main__':
+    ## Optimizer
+    mcs=MCSOptimizer(net.params,lossFunc,trainIter,nestNum=nestNum,\
+        maxLevyStepSize=maxLevyStepSize,randInit=True,\
+            epochToGeneration=lambda x:max(int(x/20),1))
     ## prediction
     predict = lambda prefix: predict_fun(prefix,net, numPreds=9)
     ## train and predict
@@ -222,7 +226,7 @@ if PREDICTION_TEST and __name__=='__main__':
 
     ## Multi Step Prediction
     prefixSize=10
-    totalSize=40
+    totalSize=20
     testShift=int(len(hmap)*(1-testSetRatio))
     preX,preY=hmap.data_as_tensor
     preX,preY=torch.unsqueeze(preX[testShift:testShift+prefixSize],-1),torch.unsqueeze(preY[testShift:testShift+totalSize-1],-1)
