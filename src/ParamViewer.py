@@ -11,14 +11,16 @@ Date: 2022-04-17 20:40:50
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import torch
+import matplotlib.pyplot as plt
 
+DRAW_LOSS=True
     #Save path:
 if __name__=='__main__':
     currentPath=os.getcwd()
     netSavepath=os.path.join(currentPath,'TrainedNet','Exp')
 
 if __name__=='__main__':
-    filename='QExpF.pt'
+    filename='QExp1.pt'
 
 
 if  __name__=='__main__':
@@ -47,3 +49,14 @@ if  __name__=='__main__':
     print('constants:\n','-'*40)
     for constant in netData['NetConstants']:
         print(constant,'\n')
+
+if DRAW_LOSS and __name__=='__main__':
+    fig,axes=plt.subplots(1,1)
+    axes.set_xlabel('Epoch')
+    axes.set_ylabel('Loss')
+    train_loss=[l[0] for l in netData['Loss']]
+    test_loss=[l[1] for l in netData['Loss']]
+    axes.plot(range(0,len(netData['Loss'])),train_loss,label='train loss')
+    axes.plot(range(0,len(netData['Loss'])),test_loss,label='test loss')
+    plt.legend()
+    plt.show()
