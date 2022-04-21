@@ -142,6 +142,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
                 for weight in self.nestWeight[self.nestIndexAndCost[i][0]]:
                     deltaWeight=getDeltaWeight(weight,currentLevyStep[weightIndex])
                     weight.add_(deltaWeight)
+                    #TODO:add weight check
                     weightIndex+=1
                 self.nestIndexAndCost[i][1]=self.costFunc.evaluate(X,Y,\
                     self.nestWeight[self.nestIndexAndCost[i][0]])
@@ -161,6 +162,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
                         newWeight=weight.clone()
                         newWeight.add_(deltaWeight)
                         newWeightTuple+=(newWeight,)
+                        #TODO:add weight check
                     newCost=self.costFunc.evaluate(X,Y,newWeightTuple)
                     k=np.random.randint(0,self.nestNum)
                     if newCost<self.nestIndexAndCost[k][1]:
@@ -181,6 +183,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
                         else:
                             newWeight=weightTuple_i[weightIndex].clone()
                             newWeight.add_(-deltaWeight)
+                        #TODO:add weight check
                         newWeightTuple+=(newWeight,)
                     newCost=self.costFunc.evaluate(X,Y,newWeightTuple)
                     k=np.random.randint(0,self.nestNum)

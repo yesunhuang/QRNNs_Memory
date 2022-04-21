@@ -13,6 +13,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import matplotlib.pyplot as plt
 import torch
 from torch import pi
+import qutip as qt
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
@@ -91,13 +92,14 @@ elif __name__=='__main__':
     # Model
     ## Parameters
     inputSize=outputSize=1
-    qubits=4
-    activation=[0,2]
+    qubits=2
+    activation=[0]
     inputQubits=outputQubits=[i for i in range(qubits)]
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
-    rescale={'WIn':1.0,'J':torch.tensor([0.5])}
+    rescale={'WIn':1,'J':torch.tensor([0.5])}
     inactive=[]
-    sysConstants={'Dissipation':None,'tau':4.0,'steps':3,'numCpus':16}
+    sysConstants={'measureQuantity':'y','Dissipation':None,\
+        'tau':4.0,'steps':3,'numCpus':1}
     measEffect=False
 
 if __name__=='__main__':

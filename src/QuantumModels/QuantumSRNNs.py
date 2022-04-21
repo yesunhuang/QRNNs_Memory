@@ -543,12 +543,12 @@ class QuantumSystemFunction:
         function: get the forward function
         param {sysConstants}: the system constants
             {'measureQuantity':'z',
-                            'Dissipation':'0.0',
-                            'Omega':1.0,
-                            'tau':1.51*pi,
-                            'steps':10,
-                            'numCpus':1,
-                            'options':qt.Options()}
+            'Dissipation':'0.0',
+            'Omega':1.0,
+            'tau':1.51*pi,
+            'steps':10,
+            'numCpus':1,
+            'options':qt.Options()}
         param {samples}: the number of samples
         param {measEffect}: whether the measurement effect is included
         return: the forward function
