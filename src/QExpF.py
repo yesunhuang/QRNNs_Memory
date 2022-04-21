@@ -16,11 +16,11 @@ from torch import pi
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
-PREDICTION_TEST=False
 GENERATE_DATA=False
-SAVE_NETWORK=True
 LOAD_NETWORK=False
+PREDICTION_TEST=False
 TRAIN_NETWORK=True
+SAVE_NETWORK=True
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -96,7 +96,7 @@ elif __name__=='__main__':
     rescale={'WIn':1,'DeltaIn':1,'J':torch.tensor([0.5])}
     inactive=[]
     sysConstants={'Dissipation':None,'tau':4.0,'steps':3,'numCpus':16}
-    measEffect=True
+    measEffect=False
 
 if __name__=='__main__':
     ## print parameters
@@ -143,15 +143,16 @@ if  TRAIN_NETWORK and __name__=='__main__':
         maxLevyStepSize=netData['OptimizerConstant']['maxLevyStepSize']
         nestNum=netData['OptimizerConstant']['nestNum']
     else:
-        num_epochs= 10
-        maxLevyStepSize=[1.0,1.0,0.1,1.0,1.0]
-        nestNum=25
-    step_epochs=1
+        num_epochs= 100
+        maxLevyStepSize=[0.2]*5
+        nestNum=40
+    step_epochs=5
     ## Loss function
     lossFunc=GradFreeMSELoss(net)
     ## Optimizer
     mcs=MCSOptimizer(net.params,lossFunc,trainIter,nestNum=nestNum,\
-        maxLevyStepSize=maxLevyStepSize,randInit=True)
+        maxLevyStepSize=maxLevyStepSize,randInit=True,\
+            epochToGeneration=lambda x:max(int(x/20),1))
 
 ## Initial loss
 if __name__=='__main__':
@@ -174,14 +175,15 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## prediction
     predict = lambda prefix: predict_fun(prefix,net, numPreds=9)
     ## train and predict
+    timer=hp.Timer()
     for epoch in range(num_epochs):
-        timer=hp.Timer()
         trainLoss, _=mcs.step()
         testLoss=QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, False)
-        timeEpoch=timer.stop()
         if (epoch + 1) % step_epochs == 0:
+            timeEpoch=timer.stop()
             print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {trainLoss:.4f}, Test Loss: {testLoss:.4f},\
                  Time: {timeEpoch:.4f}s') 
+            timer.start()
         l_epochs.append([trainLoss,testLoss])
         #scheduler.step()
     testLoss=QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, False)
