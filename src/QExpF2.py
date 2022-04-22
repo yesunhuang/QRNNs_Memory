@@ -99,7 +99,7 @@ elif __name__=='__main__':
     rescale={'WIn':1,'J':torch.tensor([0.5])}
     inactive=[]
     sysConstants={'measureQuantity':'y','Dissipation':None,\
-        'tau':4.0,'steps':3,'numCpus':1}
+        'tau':4.0,'steps':3,'numCpus':16}
     measEffect=False
 
 if __name__=='__main__':
@@ -145,10 +145,12 @@ if  TRAIN_NETWORK and __name__=='__main__':
         print('Are you sure to train the trained network?')
         num_epochs=netData['OptimizerConstant']['num_epochs']
         maxLevyStepSize=netData['OptimizerConstant']['maxLevyStepSize']
+        regular=netData['OptimizerConstant']['regular']
         nestNum=netData['OptimizerConstant']['nestNum']
     else:
-        num_epochs= 100
+        num_epochs= 300
         maxLevyStepSize=[0.1]*5
+        regular=[2,1,5,2,1]
         nestNum=40
     step_epochs=5
 
@@ -176,8 +178,8 @@ if __name__=='__main__':
 if TRAIN_NETWORK and __name__=='__main__':
     ## Optimizer
     mcs=MCSOptimizer(net.params,lossFunc,trainIter,nestNum=nestNum,\
-        maxLevyStepSize=maxLevyStepSize,randInit=True,\
-            epochToGeneration=lambda x:max(int(x/20),1))
+        maxLevyStepSize=maxLevyStepSize,regular=regular,\
+        randInit=True,epochToGeneration=lambda x:max(int(x/50),1))
     ## prediction
     predict = lambda prefix: predict_fun(prefix,net, numPreds=9)
     ## train and predict
