@@ -30,8 +30,10 @@ class StandardCostFunc(metaclass=abc.ABCMeta):
 class MCSOptimizer(StandardGradFreeOptimizer):
     '''A class for implementing MCS'''
 
-    def __init__(self, netWeight:tuple, costFunc:StandardCostFunc, dataIter:Iterable,\
-                p_drop:float=0.75,nestNum:int=25,maxLevyStepSize:list=[],\
+    def __init__(self, netWeight:tuple, \
+                costFunc:StandardCostFunc, dataIter:Iterable,\
+                p_drop:float=0.75,nestNum:int=25,\
+                maxLevyStepSize:list=[],regular:list=None,\
                 randInit:bool=False,constantStep:bool=False,\
                 epochToGeneration:Callable=lambda x:x):
         '''
@@ -43,6 +45,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
         param{*p_drop}: ratio of bad nest that to be dropped
         param{*nestNum}: number of maximum nests
         param{*maxLevyStepSize}: Levy step size
+        paran{*regular}: regularization[the max value of param allowed]
         param{*randomInit}: use randn to initialize
         param{*constantStep}: use constant levy step
         param{*epochToGeneration}: epoch to generation
@@ -57,11 +60,25 @@ class MCSOptimizer(StandardGradFreeOptimizer):
             self.maxLevyStepSize=torch.ones(len(netWeight))
         else:
             self.maxLevyStepSize=torch.tensor(maxLevyStepSize)
+        self.regular=regular
         self.randInit=randInit
         self.constantStep=constantStep
         self.epochToGeneration=epochToGeneration
         self.currentEpoch=0
         self.__initialize()
+
+    def weight_regular(self, weight, index):
+        '''
+        name: weight_regular
+        fuction: regularize the weight
+        param {*weight}: weight
+        param {*index}: index of weight
+        return {*weight_regular}
+        '''
+        if self.regular is None:
+            return weight
+        else:
+            return weight.clamp_(min=-0.5*self.regular[index],max=0.5*self.regular[index])
 
     @torch.no_grad()
     def __levy_flight(self,dimension, step, naive):
@@ -111,7 +128,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
                     newWeightTuple+=(weight.clone(),)
                 self.nestWeight.append(newWeightTuple)
                 self.nestIndexAndCost.append([i,cost])
-    
+
     @torch.no_grad()
     def step(self,isNaive:bool=True):
         '''
@@ -142,7 +159,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
                 for weight in self.nestWeight[self.nestIndexAndCost[i][0]]:
                     deltaWeight=getDeltaWeight(weight,currentLevyStep[weightIndex])
                     weight.add_(deltaWeight)
-                    #TODO:add weight check
+                    self.weight_regular(weight,weightIndex)
                     weightIndex+=1
                 self.nestIndexAndCost[i][1]=self.costFunc.evaluate(X,Y,\
                     self.nestWeight[self.nestIndexAndCost[i][0]])
@@ -157,12 +174,13 @@ class MCSOptimizer(StandardGradFreeOptimizer):
                         topLevyStep=self.maxLevyStepSize
                     newWeightTuple=()
                     weightIndex=0
-                    for weight in self.netWeight:
+                    for weight in self.nestWeight[self.nestIndexAndCost[i][0]]:
                         deltaWeight=getDeltaWeight(weight,topLevyStep[weightIndex])
                         newWeight=weight.clone()
                         newWeight.add_(deltaWeight)
+                        self.weight_regular(newWeight,weightIndex)
                         newWeightTuple+=(newWeight,)
-                        #TODO:add weight check
+                        weightIndex+=1
                     newCost=self.costFunc.evaluate(X,Y,newWeightTuple)
                     k=np.random.randint(0,self.nestNum)
                     if newCost<self.nestIndexAndCost[k][1]:
@@ -183,7 +201,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
                         else:
                             newWeight=weightTuple_i[weightIndex].clone()
                             newWeight.add_(-deltaWeight)
-                        #TODO:add weight check
+                        #self.weight_regular(newWeight,weightIndex)
                         newWeightTuple+=(newWeight,)
                     newCost=self.costFunc.evaluate(X,Y,newWeightTuple)
                     k=np.random.randint(0,self.nestNum)
@@ -194,7 +212,8 @@ class MCSOptimizer(StandardGradFreeOptimizer):
         #update netWeight
         for weightIndex in range(0,len(self.netWeight)):
             topWeight=self.nestWeight[self.nestIndexAndCost[0][0]][weightIndex]
-            self.netWeight[weightIndex].add_(-self.netWeight[weightIndex]+topWeight)
+            #self.netWeight[weightIndex].add_(-self.netWeight[weightIndex]+topWeight)
+            self.netWeight[weightIndex][:]=topWeight
         return (self.nestIndexAndCost[0][1],np.mean(np.asarray(epochLoss)))    
 
     @torch.no_grad()
