@@ -67,6 +67,7 @@ class MCSOptimizer(StandardGradFreeOptimizer):
         self.currentEpoch=0
         self.__initialize()
 
+    @torch.no_grad()
     def weight_regular(self, weight, index):
         '''
         name: weight_regular
