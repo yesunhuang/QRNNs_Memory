@@ -25,10 +25,10 @@ def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-TRAIN_NETWORK=False
-SAVE_NETWORK=False
+TRAIN_NETWORK=True
+SAVE_NETWORK=True
 LOAD_NETWORK=True
-PREDICTION_TEST=True
+PREDICTION_TEST=False
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -92,8 +92,8 @@ if LOAD_NETWORK and __name__=='__main__':
 
     sysConstants=netData['sysConstants']
     measEffect=netData['measEffect']  
-
-    sysConstants['numCpus']=1
+    if not TRAIN_NETWORK:
+        sysConstants['numCpus']=1
 
 elif __name__=='__main__':
     # Model
@@ -207,7 +207,7 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## Save the network
 if SAVE_NETWORK and __name__=='__main__':
     ## Parameters
-    filename='QExpF2.pt'
+    filename='QExpF3.pt'
     OptimizerConstant={'num_epochs':num_epochs,'maxLevyStepSize':maxLevyStepSize,\
         'nestNum':nestNum}
     netData={'NetParams':net.params,'NetConstants':net.constants,\
