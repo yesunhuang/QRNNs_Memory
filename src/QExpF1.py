@@ -12,15 +12,14 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import matplotlib.pyplot as plt
 import torch
-from torch import pi
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-TRAIN_NETWORK=False
-SAVE_NETWORK=False
-LOAD_NETWORK=True
-PREDICTION_TEST=True
+TRAIN_NETWORK=True
+SAVE_NETWORK=True
+LOAD_NETWORK=False
+PREDICTION_TEST=False
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -141,13 +140,10 @@ if  TRAIN_NETWORK and __name__=='__main__':
     ## Parameters
     if LOAD_NETWORK:
         print('Are you sure to train the trained network?')
-        num_epochs=netData['OptimizerConstant']['num_epochs']
-        maxLevyStepSize=netData['OptimizerConstant']['maxLevyStepSize']
-        nestNum=netData['OptimizerConstant']['nestNum']
-    else:
-        num_epochs= 100
-        maxLevyStepSize=[0.2]*5
-        nestNum=40
+    num_epochs= 300
+    maxLevyStepSize=[0.5,0.2,1.0,0.2,0.2]
+    regular=[2,1,5,1,1]
+    nestNum=40
     step_epochs=5
 
 ## Initial loss
@@ -174,8 +170,8 @@ if __name__=='__main__':
 if TRAIN_NETWORK and __name__=='__main__':
     ## Optimizer
     mcs=MCSOptimizer(net.params,lossFunc,trainIter,nestNum=nestNum,\
-        maxLevyStepSize=maxLevyStepSize,randInit=True,\
-            epochToGeneration=lambda x:max(int(x/20),1))
+        maxLevyStepSize=maxLevyStepSize,regular=regular,randInit=True,\
+            epochToGeneration=lambda x:max(int(x/50),1))
     ## prediction
     predict = lambda prefix: predict_fun(prefix,net, numPreds=9)
     ## train and predict
