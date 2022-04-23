@@ -150,15 +150,10 @@ if  TRAIN_NETWORK and __name__=='__main__':
     ## Parameters
     if LOAD_NETWORK:
         print('Are you sure to train the trained network?')
-        num_epochs=netData['OptimizerConstant']['num_epochs']
-        maxLevyStepSize=netData['OptimizerConstant']['maxLevyStepSize']
-        regular=netData['OptimizerConstant']['regular']
-        nestNum=netData['OptimizerConstant']['nestNum']
-    else:
-        num_epochs= 300
-        maxLevyStepSize=[0.1]*5
-        regular=[2,1,5,2,1]
-        nestNum=40
+    num_epochs= 100
+    maxLevyStepSize=[0.1]*5
+    regular=[2,1,5,2,1]
+    nestNum=40
     step_epochs=5
 
 ## Initial loss
