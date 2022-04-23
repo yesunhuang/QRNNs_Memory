@@ -197,6 +197,7 @@ class SuportFunction:
         name: get_forward_fn_fun 
         fuction: get the forward function
         param {activation}: the activation function
+        param {isTypical}: whether to use the typical forward function or the QRNN counterpart.
         return: the function
         '''        
         self.activation=activation
