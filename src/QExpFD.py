@@ -1,6 +1,6 @@
 '''
-Name: QExpF
-Desriptption: Experiment One 
+Name: QExpFD
+Desriptption: Dissipation added to the network
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One

@@ -1,6 +1,6 @@
 '''
 Name: QExp1
-Desriptption: Experiment One 
+Desriptption: reservoir 4 qubits
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One

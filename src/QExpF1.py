@@ -1,6 +1,6 @@
 '''
-Name: QExpF
-Desriptption: Experiment One 
+Name: QExpF1
+Desriptption: full power with 4 qubits 
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One

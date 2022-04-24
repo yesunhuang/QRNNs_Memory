@@ -1,6 +1,6 @@
 '''
-Name: QExpF3 
-Desriptption: fine tuning with QExpF2
+Name: QExpFM2
+Desriptption: Fine tuning using QExpF2
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One
@@ -16,10 +16,10 @@ def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-TRAIN_NETWORK=False
-SAVE_NETWORK=False
+TRAIN_NETWORK=True
+SAVE_NETWORK=True
 LOAD_NETWORK=True
-PREDICTION_TEST=True
+PREDICTION_TEST=False
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpF3.pt'
+    filename='QExpF2.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
@@ -82,7 +82,7 @@ if LOAD_NETWORK and __name__=='__main__':
     rescale=netData['rescale']
 
     sysConstants=netData['sysConstants']
-    measEffect=netData['measEffect']  
+    measEffect=True
     if not TRAIN_NETWORK:
         sysConstants['numCpus']=1
 
@@ -98,7 +98,7 @@ elif __name__=='__main__':
     inactive=[]
     sysConstants={'measureQuantity':'y','Dissipation':None,\
         'tau':4.0,'steps':3,'numCpus':16}
-    measEffect=False
+    measEffect=True
 
 if __name__=='__main__':
     ## print parameters
@@ -193,7 +193,7 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## Save the network
 if SAVE_NETWORK and __name__=='__main__':
     ## Parameters
-    filename='QExpF3.pt'
+    filename='QExpFM2.pt'
     OptimizerConstant={'num_epochs':num_epochs,'maxLevyStepSize':maxLevyStepSize,\
         'nestNum':nestNum}
     netData={'NetParams':net.params,'NetConstants':net.constants,\

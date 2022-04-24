@@ -1,6 +1,6 @@
 '''
-Name: QExpF
-Desriptption: Experiment One 
+Name: QExpFM
+Desriptption: Full power 2 qubits with measurement effects 
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One
