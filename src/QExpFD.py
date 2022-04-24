@@ -1,13 +1,4 @@
 '''
-Name: 
-Desriptption: 
-Email: yesunhuang@mail.ustc.edu.cn
-OpenSource: https://github.com/yesunhuang
-Msg: 
-Author: YesunHuang
-Date: 2022-04-24 12:08:28
-'''
-'''
 Name: QExpF
 Desriptption: Experiment One 
 Email: yesunhuang@mail.ustc.edu.cn
