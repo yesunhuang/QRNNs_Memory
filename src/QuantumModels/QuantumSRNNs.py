@@ -104,7 +104,7 @@ class QuantumSystemFunction:
         if self.isDensity==True:
             S=[state.copy() for _ in range(batch_size)]
         else:
-            S=[[state.copy() for _ in range(self.samples)] for _ in range(self.samples)]
+            S=[[state.copy() for _ in range(self.samples)] for _ in range(batch_size)]
         return (S,)
 
     def get_init_state_fun(self,activation:list=[],isDensity:bool=True):
