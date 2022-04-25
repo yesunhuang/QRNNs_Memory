@@ -543,7 +543,7 @@ class QuantumSystemFunction:
         function: get the forward function
         param {sysConstants}: the system constants
             {'measureQuantity':'z',
-            'Dissipation':'0.0',
+            'Dissipation':'0.1',
             'Omega':1.0,
             'tau':1.51*pi,
             'steps':10,

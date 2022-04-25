@@ -16,10 +16,10 @@ def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-TRAIN_NETWORK=False
-SAVE_NETWORK=False
-LOAD_NETWORK=True
-PREDICTION_TEST=True
+TRAIN_NETWORK=True
+SAVE_NETWORK=True
+LOAD_NETWORK=False
+PREDICTION_TEST=False
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpF2.pt'
+    filename='QExpFS.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
@@ -75,6 +75,8 @@ if LOAD_NETWORK and __name__=='__main__':
     
     inputQubits=netData['inputQubits']
     outputQubits=netData['outputQubits']
+
+    isDensity=netData['isDensity']
     activation=netData['activation']
     
     interQPairs=netData['interQPairs']
@@ -83,6 +85,7 @@ if LOAD_NETWORK and __name__=='__main__':
 
     sysConstants=netData['sysConstants']
     measEffect=netData['measEffect']  
+    samples=netData['samples']
 
     sysConstants['numCpus']=1
 
@@ -92,12 +95,14 @@ elif __name__=='__main__':
     inputSize=outputSize=1
     qubits=2
     activation=[0]
+    isDensity=False
     inputQubits=outputQubits=[i for i in range(qubits)]
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
     rescale={'WIn':1,'J':torch.tensor([0.5])}
     inactive=[]
     sysConstants={'measureQuantity':'y','Dissipation':None,\
         'tau':4.0,'steps':3,'numCpus':16}
+    samples=1
     measEffect=False
 
 if __name__=='__main__':
@@ -111,13 +116,15 @@ if __name__=='__main__':
     ## Get neccesary functions
     srnnTestSup=QuantumSystemFunction()
     #transform=lambda Xs:[torch.squeeze(x) for x in Xs]
-    init_rnn_state=srnnTestSup.get_init_state_fun(activation=activation)
+    init_rnn_state=srnnTestSup.get_init_state_fun(activation=activation,\
+                                                isDensity=isDensity)
     get_params=srnnTestSup.get_get_params_fun(inputQubits=inputQubits,\
                                             outputQubits=outputQubits,\
                                             interQPairs=interQPairs,\
                                             inactive=inactive,\
                                             rescale=rescale)
-    rnn=srnnTestSup.get_forward_fn_fun(measEffect=measEffect,\
+    rnn=srnnTestSup.get_forward_fn_fun(samples=samples,\
+                                        measEffect=measEffect,\
                                         sysConstants=sysConstants)
     predict_fun=srnnTestSup.get_predict_fun(outputTransoform=transform)
 
@@ -131,7 +138,7 @@ if LOAD_NETWORK and __name__=='__main__':
 if __name__=='__main__':
     state=net.begin_state(batchSize)
     Y,newState=net(X,state)
-    print(Y.shape, len(newState), newState[0][0].shape)
+    print(Y.shape, len(newState), newState[0][0][0].shape)
 
 if not LOAD_NETWORK and not TRAIN_NETWORK:
     print('The network is not trained, are you sure to move on?')
@@ -198,16 +205,16 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## Save the network
 if SAVE_NETWORK and __name__=='__main__':
     ## Parameters
-    filename='QExpF2.pt'
+    filename='QExpFS.pt'
     OptimizerConstant={'num_epochs':num_epochs,'maxLevyStepSize':maxLevyStepSize,\
         'nestNum':nestNum}
     netData={'NetParams':net.params,'NetConstants':net.constants,\
             'inputSize':inputSize,'qubits':qubits,'outputSize':outputSize,\
-            'activation':activation,'isDensity':True,\
+            'activation':activation,'isDensity':isDensity,\
             'inputQubits':inputQubits,'outputQubits':outputQubits,\
             'interQPairs':interQPairs,'inactive':inactive,\
             'rescale':{},'isRandom':True,\
-            'sysConstants':sysConstants,'samples':1,'measEffect':measEffect,\
+            'sysConstants':sysConstants,'samples':samples,'measEffect':measEffect,\
             'Loss':l_epochs,'OptimizerConstant':OptimizerConstant}
     torch.save(netData,os.path.join(netSavepath,filename))
 
