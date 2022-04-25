@@ -422,6 +422,7 @@ class QuantumSystemFunction:
         #print(stateBatch[0])
         H_I,H_input=H
         #print(H_I)
+        assert  len(H_input)==len(stateBatch), 'The length of H_input is not equal to the length of stateBatch'
         #print(type(H_input))
         values=[(singleH+H_I,singleState,Co_ps) for singleH,singleState in zip(H_input,stateBatch)]
         #print(type(values[0][1]))
@@ -475,6 +476,7 @@ class QuantumSystemFunction:
         #print(results.shape)
         #assert results[1,0,0]==measResults[1][0,0],'The result is not correct'
         return results
+        #return results,S
     def __forward_fn(self,Xs:torch.tensor,state:tuple,weights:tuple):
         '''
         name:forward_fn
@@ -523,8 +525,9 @@ class QuantumSystemFunction:
         H_I,Co_ps=self.__build_int_operators(J,qubits)
         if self.sysConstants['numCpus']==1:
             value_pack=Xs,inputParams,qubits,S,H_I,Co_ps
-            measResults=self.sub_forward_fn(value_pack)
+            measResults,S=self.sub_forward_fn(value_pack)
         else:
+            #TODO:There is a bug here, we did not split S, but it is ok under mcs.
             subBatch=max(1,Xs.shape[1]//self.sysConstants['numCpus'])
             XSubBatchs=list(Xs.split(subBatch,dim=1))
             #print(len(XSubBatchs))
