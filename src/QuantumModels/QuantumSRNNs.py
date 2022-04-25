@@ -422,7 +422,7 @@ class QuantumSystemFunction:
         #print(stateBatch[0])
         H_I,H_input=H
         #print(H_I)
-        assert  len(H_input)==len(stateBatch), 'The length of H_input is not equal to the length of stateBatch'
+        #assert  len(H_input)==len(stateBatch), 'The length of H_input is not equal to the length of stateBatch'
         #print(type(H_input))
         values=[(singleH+H_I,singleState,Co_ps) for singleH,singleState in zip(H_input,stateBatch)]
         #print(type(values[0][1]))
