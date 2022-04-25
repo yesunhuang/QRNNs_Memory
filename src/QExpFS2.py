@@ -1,15 +1,6 @@
 '''
-Name: 
-Desriptption: 
-Email: yesunhuang@mail.ustc.edu.cn
-OpenSource: https://github.com/yesunhuang
-Msg: 
-Author: YesunHuang
-Date: 2022-04-26 00:42:23
-'''
-'''
-Name: QExpFS
-Desriptption: Full power 2 qubits with single sample
+Name: QExpFS2
+Desriptption: Full power 2 qubits with 10 samples
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One
@@ -25,10 +16,10 @@ def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-TRAIN_NETWORK=False
-SAVE_NETWORK=False
-LOAD_NETWORK=True
-PREDICTION_TEST=True
+TRAIN_NETWORK=True
+SAVE_NETWORK=True
+LOAD_NETWORK=False
+PREDICTION_TEST=False
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -111,7 +102,7 @@ elif __name__=='__main__':
     inactive=[]
     sysConstants={'measureQuantity':'y','Dissipation':None,\
         'tau':4.0,'steps':3,'numCpus':16}
-    samples=1
+    samples=10
     measEffect=False
 
 if __name__=='__main__':
