@@ -183,3 +183,30 @@ class Accumulator:
         param {idx}: the index of data
         '''        
         return self.data[idx]
+
+def list_split(source:list,size:int):
+    '''
+    name: list_split
+    fuction: split the list into several parts
+    param {source}: the source list
+    param {size}: the size of each part, if the last part is smaller than size,
+                the last part will be the last part.
+    '''      
+    splittedList=[]  
+    for i in range(0, len(source), size):
+        if (i+size)<len(source):
+            splittedList.append(source[i:i + size]) 
+        else:
+            splittedList.append(source[i:])
+    return splittedList
+
+def list_concat(source:list):
+    '''
+    name: list_cat
+    fuction: concatenate the list
+    param {source}: the source list
+    '''      
+    catList=[]
+    for item in source:
+        catList=catList+item
+    return catList

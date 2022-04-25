@@ -422,7 +422,7 @@ class QuantumSystemFunction:
         #print(stateBatch[0])
         H_I,H_input=H
         #print(H_I)
-        #assert  len(H_input)==len(stateBatch), 'The length of H_input is not equal to the length of stateBatch'
+        assert  len(H_input)==len(stateBatch), 'The length of H_input is not equal to the length of stateBatch'
         #print(type(H_input))
         values=[(singleH+H_I,singleState,Co_ps) for singleH,singleState in zip(H_input,stateBatch)]
         #print(type(values[0][1]))
@@ -455,12 +455,13 @@ class QuantumSystemFunction:
         '''
         name: sub_forward_fn
         function: for batch parallel
-        param {xSubBatch}: the input
-        param {inputParams}: the input parameters
-        param {qubits}: the number of qubits
-        param {S}: the states
-        param {H_I}: the interaction operators
-        param {Co_ps}: the collapse operators
+        param {valuePack}:
+            param {xSubBatch}: the input
+            param {inputParams}: the input parameters
+            param {qubits}: the number of qubits
+            param {S}: the states
+            param {H_I}: the interaction operators
+            param {Co_ps}: the collapse operators
         '''
         XSubBatch,inputParams,qubits,S,H_I,Co_ps=valuePack
         measResults=[]
@@ -470,13 +471,11 @@ class QuantumSystemFunction:
             S,measResult=self.__measure(S)
             #Y=torch.mm(measResult,WOut)+DeltaOutParam
             #Ys.append(Y)
-            #print(measResult.shape)
             measResults.append(torch.unsqueeze(measResult,0))
         results=torch.cat(measResults,dim=0)
-        #print(results.shape)
         #assert results[1,0,0]==measResults[1][0,0],'The result is not correct'
-        return results
-        #return results,S
+        #return results
+        return results,S
     def __forward_fn(self,Xs:torch.tensor,state:tuple,weights:tuple):
         '''
         name:forward_fn
@@ -527,12 +526,18 @@ class QuantumSystemFunction:
             value_pack=Xs,inputParams,qubits,S,H_I,Co_ps
             measResults,S=self.sub_forward_fn(value_pack)
         else:
-            #TODO:There is a bug here, we did not split S, but it is ok under mcs.
             subBatch=max(1,Xs.shape[1]//self.sysConstants['numCpus'])
             XSubBatchs=list(Xs.split(subBatch,dim=1))
-            #print(len(XSubBatchs))
-            value_packs=[(XSubBatch,inputParams,qubits,S,H_I,Co_ps) for XSubBatch in XSubBatchs]
-            measResults=qt.parallel_map(self.sub_forward_fn,value_packs,num_cpus=self.sysConstants['numCpus'])
+            SSubBatchs=hp.list_split(S,subBatch)
+            assert len(XSubBatchs)==len(SSubBatchs),\
+                 'The length of XSubBatchs is not equal to the length of SSubBatchs'
+            value_packs=[(XSubBatch,inputParams,qubits,SSubBatch,H_I,Co_ps) \
+                for (XSubBatch,SSubBatch) in zip(XSubBatchs,SSubBatchs)]
+            results=qt.parallel_map(self.sub_forward_fn,value_packs,num_cpus=self.sysConstants['numCpus'])
+            measResults=[result[0] for result in results]
+            states=[result[1] for result in results]
+            S=hp.list_concat(states)
+            assert len(S)==Xs.shape[1],'The batch size of states is not correct.'
             measResults=torch.cat(measResults,dim=1)
             assert measResults.shape==torch.Size([Xs.shape[0],Xs.shape[1],len(self.outputQubits)]),\
                 'The shape of the measResults is wrong'
