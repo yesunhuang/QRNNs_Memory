@@ -16,10 +16,10 @@ def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-TRAIN_NETWORK=False
-SAVE_NETWORK=False
+TRAIN_NETWORK=True
+SAVE_NETWORK=True
 LOAD_NETWORK=True
-PREDICTION_TEST=True
+PREDICTION_TEST=False
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -103,7 +103,7 @@ elif __name__=='__main__':
     inactive=[]
     sysConstants={'measureQuantity':'y','Dissipation':None,\
         'tau':4.0,'steps':3,'numCpus':16}
-    samples=10
+    samples=5
     measEffect=False
 
 if __name__=='__main__':
@@ -139,7 +139,7 @@ if LOAD_NETWORK and __name__=='__main__':
 if __name__=='__main__':
     state=net.begin_state(batchSize)
     Y,newState=net(X,state)
-    print(Y.shape, len(newState), newState[0][0][0].shape)
+    print(Y.shape, len(newState[0][0]), newState[0][0][0].shape)
 
 if not LOAD_NETWORK and not TRAIN_NETWORK:
     print('The network is not trained, are you sure to move on?')
