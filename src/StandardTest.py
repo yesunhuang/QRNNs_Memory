@@ -9,10 +9,9 @@ Date: 2022-04-17 20:40:50
 '''
 #import all the things we need
 import os
-
-from scipy.fftpack import shift
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
@@ -23,6 +22,7 @@ NET_FILENAME='QExp1.pt'
 ##Loss test configuration
 TRIALS=10
 TRIALS_STEP=1
+TEST_TRIAN_DATA=False
 ##Prediction plot configuration
 MULTI_PREFIX_SIZE=10
 MULTI_TOTAL_SIZE=20
@@ -143,6 +143,27 @@ if __name__=='__main__':
     l_epochs=netData['Loss']
     print(f'Saved Train Loss: {l_epochs[-1][0]:f}')
     print(f'Saved Test Loss: {l_epochs[-1][1]:f}')
+
+    timer=hp.Timer()
+    train_loss=[]
+    test_loss=[]
+    for i in range(len(TRIALS)):
+        test_loss.append(QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, True))
+        if TEST_TRIAN_DATA:
+            train_loss.append(QuantumSystemFunction.evaluate_accuracy(net, trainIter, lossFunc, True))
+        if (i+1)%TRIALS_STEP==0:
+            timeCost=timer.stop()
+            print('-'*50)
+            print(f'Trial {i+1:d}/{TRIALS[-1]:d}')
+            print(f'Test Loss: {test_loss[-1]:f}')
+            if TEST_TRIAN_DATA:
+                print(f'Train Loss: {train_loss[-1]:f}')
+            print(f'Time Cost: {timeCost:f}s')
+            timer.start()
+    print('-'*50)
+    print(f'Average Test Loss: {np.mean(test_loss):f}')
+    if TEST_TRIAN_DATA:
+        print(f'Average Train Loss: {np.mean(train_loss):f}')
     
 
 if  __name__=='__main__':
