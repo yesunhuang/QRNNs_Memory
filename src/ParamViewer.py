@@ -20,7 +20,7 @@ if __name__=='__main__':
     netSavepath=os.path.join(currentPath,'TrainedNet','Exp')
 
 if __name__=='__main__':
-    filename='QExpFM2.pt'
+    filename='QExpFS.pt'
 
 
 if  __name__=='__main__':
