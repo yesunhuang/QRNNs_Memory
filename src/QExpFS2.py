@@ -18,7 +18,7 @@ def transform(Xs):
 GENERATE_DATA=False
 TRAIN_NETWORK=True
 SAVE_NETWORK=True
-LOAD_NETWORK=False
+LOAD_NETWORK=True
 PREDICTION_TEST=False
 
 if __name__=='__main__':
@@ -85,9 +85,10 @@ if LOAD_NETWORK and __name__=='__main__':
 
     sysConstants=netData['sysConstants']
     measEffect=netData['measEffect']  
-    samples=netData['samples']
+    samples=10
 
-    sysConstants['numCpus']=1
+    if not TRAIN_NETWORK:
+        sysConstants['numCpus']=1
 
 elif __name__=='__main__':
     # Model
@@ -148,15 +149,10 @@ if  TRAIN_NETWORK and __name__=='__main__':
     ## Parameters
     if LOAD_NETWORK:
         print('Are you sure to train the trained network?')
-        num_epochs=netData['OptimizerConstant']['num_epochs']
-        maxLevyStepSize=netData['OptimizerConstant']['maxLevyStepSize']
-        regular=netData['OptimizerConstant']['regular']
-        nestNum=netData['OptimizerConstant']['nestNum']
-    else:
-        num_epochs= 300
-        maxLevyStepSize=[0.1]*5
-        regular=[2,1,5,2,1]
-        nestNum=40
+    num_epochs= 100
+    maxLevyStepSize=[0.1]*5
+    regular=[2,1,5,2,1]
+    nestNum=40
     step_epochs=5
 
 ## Initial loss
@@ -205,7 +201,7 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## Save the network
 if SAVE_NETWORK and __name__=='__main__':
     ## Parameters
-    filename='QExpFS.pt'
+    filename='QExpFS2.pt'
     OptimizerConstant={'num_epochs':num_epochs,'maxLevyStepSize':maxLevyStepSize,\
         'nestNum':nestNum}
     netData={'NetParams':net.params,'NetConstants':net.constants,\
