@@ -605,7 +605,7 @@ class QuantumSystemFunction:
                 outputs.append(Y)
         else:
             for X in input:
-                Y,state=net(X,state)
+                Y,state=net(torch.unsqueeze(X,dim=0),state)
                 outputs.append(Y)
         return self.outputTransoform(outputs)
 

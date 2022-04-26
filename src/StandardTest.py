@@ -11,6 +11,7 @@ Date: 2022-04-17 20:40:50
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import matplotlib.pyplot as plt
+from matplotlib.ticker import  FormatStrFormatter
 import numpy as np
 import torch
 def transform(Xs):
@@ -18,7 +19,7 @@ def transform(Xs):
 #Some constants
 ##File names
 DATA_FILENAME='QExp1.csv'
-NET_FILENAME='QExp1.pt'
+NET_FILENAME='QExpFS3.pt'
 ##Loss test configuration
 TRIALS=10
 TRIALS_STEP=1
@@ -106,11 +107,11 @@ if __name__=='__main__':
     print('Net Configuration:')
     print('-'*50)
     print('Total Qubits:',qubits)
-    print('\tInput Qubits:\n',inputQubits)
-    print('\tOutput Qubits:\n',outputQubits)
-    print('\tInitial Activation:\n',activation)
-    print('\tInteraction Pairs:\n',interQPairs)
-    print('\tSysConstant=\n',sysConstants)
+    print('Input Qubits:\n',inputQubits)
+    print('Output Qubits:\n',outputQubits)
+    print('Initial Activation:\n',activation)
+    print('Interaction Pairs:\n',interQPairs)
+    print('SysConstant=\n',sysConstants)
     print('-'*50)
     
 
@@ -147,14 +148,14 @@ if __name__=='__main__':
     timer=hp.Timer()
     train_loss=[]
     test_loss=[]
-    for i in range(len(TRIALS)):
+    for i in range(TRIALS):
         test_loss.append(QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, True))
         if TEST_TRIAN_DATA:
             train_loss.append(QuantumSystemFunction.evaluate_accuracy(net, trainIter, lossFunc, True))
         if (i+1)%TRIALS_STEP==0:
             timeCost=timer.stop()
             print('-'*50)
-            print(f'Trial {i+1:d}/{TRIALS[-1]:d}')
+            print(f'Trial {i+1:d}/{TRIALS:d}')
             print(f'Test Loss: {test_loss[-1]:f}')
             if TEST_TRIAN_DATA:
                 print(f'Train Loss: {train_loss[-1]:f}')
@@ -172,18 +173,18 @@ if  __name__=='__main__':
     testShift=int(len(hmap)*(1-testSetRatio))+DATA_SHIFT
     preX,preY=hmap.data_as_tensor
     preX,preY=torch.unsqueeze(preX[testShift:testShift+SINGLE_TOTAL_SIZE],-1),\
-        torch.unsqueeze(preY[testShift:testShift+SINGLE_TOTAL_SIZE-1],-1)
-    preY=[y for y in torch.cat((preX[:2],preY[1:]),dim=0)]
+        torch.unsqueeze(preY[testShift:testShift+SINGLE_TOTAL_SIZE],-1)
+    preY=[y for y in torch.cat((preX[:hmap.interval+1],preY[hmap.interval:]),dim=0)]
     preX=torch.unsqueeze(preX,-1)
     YHat=predict_fun(preX,net,multiPred=False)
 
-    axes,fig=plt.subplots(1,1,figsize=(4,3))
-    plt.title('Single-Step Prediction')
-    fig.set_ylim(-2,2)
-    plt.plot(torch.linspace(0,len(preY),len(preY)),preY,label='Y')
-    plt.plot(torch.linspace(0,len(preY),len(preY)),YHat,label=r'$\hat{Y}$')
-    plt.vlines([MULTI_PREFIX_SIZE-1],ymin=-2,ymax=2,linestyles='dashed',label='Prediction')
-    plt.legend()
+    fig,axes=plt.subplots(1,1,figsize=(4,3))
+    axes.set_title('Single-Step Prediction')
+    axes.set_ylim(-2,2)
+    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label='Y')
+    axes.plot(torch.linspace(1,len(preY),len(preY)),YHat,label=r'$\hat{Y}$')
+    axes.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+    axes.legend()
     plt.show()
 
 if __name__=='__main__':
@@ -192,17 +193,18 @@ if __name__=='__main__':
     preX,preY=hmap.data_as_tensor
     preX,preY=torch.unsqueeze(preX[testShift:testShift+MULTI_PREFIX_SIZE],-1),\
         torch.unsqueeze(preY[testShift:testShift+MULTI_TOTAL_SIZE-1],-1)
-    preY=[y for y in torch.cat((preX[:2],preY[1:]),dim=0)]
+    preY=[y for y in torch.cat((preX[:hmap.interval+1],preY[hmap.interval:]),dim=0)]
     preX=torch.unsqueeze(preX,-1)
     YHat=predict_fun(preX,net,numPreds=MULTI_TOTAL_SIZE-MULTI_PREFIX_SIZE)
 
-    axes,fig=plt.subplots(1,1,figsize=(4,3))
-    plt.title('Multi-Step Prediction')
-    fig.set_ylim(-2,2)
-    plt.plot(torch.linspace(0,len(preY),len(preY)),preY,label='Y')
-    plt.plot(torch.linspace(0,len(preY),len(preY)),YHat,label=r'$\hat{Y}$')
-    plt.vlines([MULTI_PREFIX_SIZE-1],ymin=-2,ymax=2,linestyles='dashed',label='Prediction')
-    plt.legend()
+    fig,axes=plt.subplots(1,1,figsize=(4,3))
+    axes.set_title('Multi-Step Prediction')
+    axes.set_ylim(-2,2)
+    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label='Y')
+    axes.plot(torch.linspace(1,len(preY),len(preY)),YHat,label=r'$\hat{Y}$')
+    axes.vlines([MULTI_PREFIX_SIZE],ymin=-2,ymax=2,linestyles='dashed',label='Prediction')
+    axes.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+    axes.legend()
     plt.show()
 
 
