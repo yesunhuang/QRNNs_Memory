@@ -581,25 +581,32 @@ class QuantumSystemFunction:
         return self.__forward_fn
 
     @torch.no_grad()
-    def __predict_fun(self,prefix:torch.Tensor,net:StandardSNN,numPreds:int=1):
+    def __predict_fun(self,input:torch.Tensor,net:StandardSNN,\
+                        numPreds:int=1,multiPred:bool=True):
         '''
         name: predict_fun
         function: predict the next numPreds
-        param {prefix}: the prefix
-        param {numPreds}: the number of prediction
+        param {prefix}: the prefix of multi-prediction or single prediction input
+        param {numPreds}: the number of multi-prediction, this argument is useless in single prediction
         param {net}: the network
+        param {multiPred}: whether the prediction is multi-prediction
         return: the prediction
         '''
         state=net.begin_state(batch_size=1)
-        outputs=[pre for pre in prefix[0:self.interval]]
+        outputs=[pre for pre in input[0:self.interval]]
         get_input=lambda: torch.unsqueeze(outputs[-self.interval],dim=0)
-        #warm-up
-        for Y in prefix[self.interval:]:
-            _,state=net(get_input(),state)
-            outputs.append(Y)
-        for _ in range(numPreds):
-            Y,state=net(get_input(),state)
-            outputs.append(Y)
+        if multiPred:
+            #warm-up
+            for Y in input[self.interval:]:
+                _,state=net(get_input(),state)
+                outputs.append(Y)
+            for _ in range(numPreds):
+                Y,state=net(get_input(),state)
+                outputs.append(Y)
+        else:
+            for X in input:
+                Y,state=net(X,state)
+                outputs.append(Y)
         return self.outputTransoform(outputs)
 
     def get_predict_fun(self,outputTransoform:Callable=lambda x:x,\

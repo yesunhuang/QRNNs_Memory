@@ -163,7 +163,8 @@ class HenonMapDataGen:
         self.__Y=[]
 
     def get_data_iter(self,testSetRatio:float,numStep:int,\
-                        batchSize:int=1,mask:int=None,shuffle:bool=True):
+                        batchSize:int=1,mask:int=None,\
+                        shuffle:bool=True,randomOffset:bool=True):
         '''
         name: get_data_iter 
         fuction: get the data iter for nns
@@ -172,6 +173,7 @@ class HenonMapDataGen:
         param {batchSize}: size of the mini batch
         param {mask}: steps of mask
         param {shuffle}: if shuffling the data
+        param {randomOffset}: if random the offset
         return {trainIter,testIter}
         '''        
         assert testSetRatio>0.0 and testSetRatio<1.0,'invalid testSetRatio!'
@@ -183,8 +185,8 @@ class HenonMapDataGen:
         testStartIndex=int(len(self.__X)*(1-testSetRatio))
         data_train=(self.__X[:testStartIndex-1],self.__Y[:testStartIndex-1])
         data_test=(self.__X[testStartIndex:],self.__Y[testStartIndex:])
-        trainIter=SeqDataLoader(data_train,numStep,mask,batchSize,shuffle)
-        testIter=SeqDataLoader(data_test,numStep,mask,batchSize,shuffle)
+        trainIter=SeqDataLoader(data_train,numStep,mask,batchSize,shuffle,randomOffset)
+        testIter=SeqDataLoader(data_test,numStep,mask,batchSize,shuffle,randomOffset)
         return trainIter,testIter
     
     def __len__(self):

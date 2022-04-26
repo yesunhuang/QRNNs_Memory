@@ -17,7 +17,8 @@ class SeqDataLoader:
 
     def __init__(self, data:tuple,\
                 numSteps, maskSteps:int=0,\
-                batchSize:int=1, shuffle:bool=True):
+                batchSize:int=1, shuffle:bool=True,\
+                randomOffset:bool=True):
         '''
         name: __init__ 
         fuction: initialize the data loader 
@@ -26,12 +27,14 @@ class SeqDataLoader:
         param {maskSteps}: initial masked output steps
         param {batchSize}: the batch size
         param {shuffle}: whether to shuffle the data
+        param {randomOffset}: whether to random offset the data
         '''
         self.X,self.Y = data
         self.numSteps = numSteps
         self.maskSteps = maskSteps
         self.batchSize = batchSize
         self.dataSize=0
+        self.randomOffset=randomOffset
         if shuffle:
             self.dataIterFn=self.__seq_data_iter_random
         else:
@@ -52,7 +55,10 @@ class SeqDataLoader:
         return: the random sequence data iterator
         '''
         #random offset
-        offset=random.randint(0,self.numSteps)
+        if self.randomOffset:
+            offset=random.randint(0,self.numSteps)
+        else:
+            offset=0
         Xs,Ys=self.X[offset:],self.Y[offset:]
         #number of sequences
         numSeqs=len(Xs)//self.numSteps
@@ -92,7 +98,10 @@ class SeqDataLoader:
         function: generate the sequential sequence data iterator
         return: the sequential sequence data iterator
         '''
-        offset=random.randint(0,self.numSteps)
+        if self.randomOffset:
+            offset=random.randint(0,self.numSteps)
+        else:
+            offset=0
         numData=(len(self.X)-offset)//self.batchSize*self.batchSize
         Xs=torch.tensor(self.X[offset:offset+numData],dtype=torch.float32)
         Ys=torch.tensor(self.Y[offset:offset+numData],dtype=torch.float32)
