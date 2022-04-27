@@ -1,6 +1,6 @@
 '''
 Name: QExpFSM2
-Desriptption: Full power 2 qubits with 5 samples and measurement effects
+Desriptption: Full power 2 qubits with 10 samples and measurement effects
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One
@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpF2.pt'
+    filename='QExpFS3.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
@@ -85,7 +85,7 @@ if LOAD_NETWORK and __name__=='__main__':
 
     sysConstants=netData['sysConstants']
     measEffect=True  
-    samples=5
+    samples=10
     if not TRAIN_NETWORK:
         sysConstants['numCpus']=1
 
@@ -102,7 +102,7 @@ elif __name__=='__main__':
     inactive=[]
     sysConstants={'measureQuantity':'y','Dissipation':None,\
         'tau':4.0,'steps':3,'numCpus':16}
-    samples=5
+    samples=10
     measEffect=True
 
 if __name__=='__main__':
@@ -200,7 +200,7 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## Save the network
 if SAVE_NETWORK and __name__=='__main__':
     ## Parameters
-    filename='QExpFSM2.pt'
+    filename='QExpFSM3.pt'
     OptimizerConstant={'num_epochs':num_epochs,'maxLevyStepSize':maxLevyStepSize,\
         'nestNum':nestNum}
     netData={'NetParams':net.params,'NetConstants':net.constants,\
