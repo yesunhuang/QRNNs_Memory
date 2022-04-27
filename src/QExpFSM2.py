@@ -1,6 +1,6 @@
 '''
-Name: QExpFSM
-Desriptption: Full power 2 qubits with single sample and measurement effects
+Name: QExpFSM2
+Desriptption: Full power 2 qubits with 10 samples and measurement effects
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One
@@ -16,10 +16,10 @@ def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-TRAIN_NETWORK=False
-SAVE_NETWORK=False
+TRAIN_NETWORK=True
+SAVE_NETWORK=True
 LOAD_NETWORK=True
-PREDICTION_TEST=True
+PREDICTION_TEST=False
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpFSM.pt'
+    filename='QExpF2.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
@@ -85,9 +85,9 @@ if LOAD_NETWORK and __name__=='__main__':
 
     sysConstants=netData['sysConstants']
     measEffect=True  
-    samples=1
-
-    sysConstants['numCpus']=1
+    samples=5
+    if not TRAIN_NETWORK:
+        sysConstants['numCpus']=1
 
 elif __name__=='__main__':
     # Model
@@ -102,7 +102,7 @@ elif __name__=='__main__':
     inactive=[]
     sysConstants={'measureQuantity':'y','Dissipation':None,\
         'tau':4.0,'steps':3,'numCpus':16}
-    samples=1
+    samples=5
     measEffect=True
 
 if __name__=='__main__':
@@ -148,15 +148,10 @@ if  TRAIN_NETWORK and __name__=='__main__':
     ## Parameters
     if LOAD_NETWORK:
         print('Are you sure to train the trained network?')
-        num_epochs=netData['OptimizerConstant']['num_epochs']
-        maxLevyStepSize=netData['OptimizerConstant']['maxLevyStepSize']
-        regular=netData['OptimizerConstant']['regular']
-        nestNum=netData['OptimizerConstant']['nestNum']
-    else:
-        num_epochs= 300
-        maxLevyStepSize=[0.1]*5
-        regular=[2,1,5,2,1]
-        nestNum=40
+    num_epochs= 100
+    maxLevyStepSize=[0.1]*5
+    regular=[2,1,5,2,1]
+    nestNum=40
     step_epochs=5
 
 ## Initial loss
@@ -205,7 +200,7 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## Save the network
 if SAVE_NETWORK and __name__=='__main__':
     ## Parameters
-    filename='QExpFSM.pt'
+    filename='QExpFSM2.pt'
     OptimizerConstant={'num_epochs':num_epochs,'maxLevyStepSize':maxLevyStepSize,\
         'nestNum':nestNum}
     netData={'NetParams':net.params,'NetConstants':net.constants,\
