@@ -1,5 +1,5 @@
 '''
-Name: QExpFSM2
+Name: QExpFSD
 Desriptption: Full power 2 qubits with 10 samples wih dissipation
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpF2.pt'
+    filename='QExpFD.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
