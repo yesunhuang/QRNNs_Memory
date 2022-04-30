@@ -16,10 +16,10 @@ def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-TRAIN_NETWORK=False
-SAVE_NETWORK=False
-LOAD_NETWORK=True
-PREDICTION_TEST=True
+TRAIN_NETWORK=True
+SAVE_NETWORK=True
+LOAD_NETWORK=False
+PREDICTION_TEST=False
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpF.pt'
+    filename='QExpF1.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
@@ -141,8 +141,8 @@ if  TRAIN_NETWORK and __name__=='__main__':
     if LOAD_NETWORK:
         print('Are you sure to train the trained network?')
     num_epochs= 300
-    maxLevyStepSize=[0.5,0.2,1.0,0.2,0.2]
-    regular=[2,1,5,1,1]
+    maxLevyStepSize=[1.0]*5
+    regular=[2,1,5,2,1]
     nestNum=40
     step_epochs=5
 
@@ -192,7 +192,7 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## Save the network
 if SAVE_NETWORK and __name__=='__main__':
     ## Parameters
-    filename='QExpF.pt'
+    filename='QExpF1.pt'
     OptimizerConstant={'num_epochs':num_epochs,'maxLevyStepSize':maxLevyStepSize,\
         'nestNum':nestNum}
     netData={'NetParams':net.params,'NetConstants':net.constants,\
