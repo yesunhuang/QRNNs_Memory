@@ -16,10 +16,10 @@ def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 GENERATE_DATA=False
-TRAIN_NETWORK=True
-SAVE_NETWORK=True
+TRAIN_NETWORK=False
+SAVE_NETWORK=False
 LOAD_NETWORK=True
-PREDICTION_TEST=False
+PREDICTION_TEST=True
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpF2.pt'
+    filename='QExpFSFT.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
