@@ -13,22 +13,25 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import matplotlib.pyplot as plt
 from matplotlib.ticker import  FormatStrFormatter
 import numpy as np
+import pandas as pd
 import torch
 def transform(Xs):
         return [torch.squeeze(x) for x in Xs]
 #Some constants
 ##File names
 DATA_FILENAME='QExp1.csv'
-NET_FILENAME='QExpFS3.pt'
+NET_FILENAME='QExpFSM3.pt'
+TEST_DATA_FILENAME='QExp1Test.csv'
 ##Loss test configuration
 TRIALS=10
 TRIALS_STEP=1
 TEST_TRIAN_DATA=False
 ##Prediction plot configuration
-MULTI_PREFIX_SIZE=10
-MULTI_TOTAL_SIZE=20
-SINGLE_TOTAL_SIZE=20
+MULTI_PREFIX_SIZE=5
+MULTI_TOTAL_SIZE=100
+SINGLE_TOTAL_SIZE=100
 DATA_SHIFT=0
+SAVE_TEST_DATA=True
 
 
 if __name__=='__main__':
@@ -43,6 +46,7 @@ if __name__=='__main__':
     currentPath=os.getcwd()
     dataSavepath=os.path.join(currentPath,'data','HenonMap','Exp')
     netSavepath=os.path.join(currentPath,'TrainedNet','Exp')
+    testSavepath=os.path.join(currentPath,'data','ModelTest','HenonMap','Exp')
 
 if __name__=='__main__':
     # Data Iter
@@ -57,7 +61,7 @@ if __name__=='__main__':
     hmap.read_from_CSV(DATA_FILENAME)
     ## Get the Iter
     trainIter,testIter=hmap.get_data_iter(testSetRatio,\
-        numStep,batchSize,mask=0,shuffle=False,randomOffset=False)
+        numStep,batchSize,mask=0,shuffle=False,randomOffset=True)
     
     ## Print information
 if __name__=='__main__':
@@ -87,9 +91,9 @@ if  __name__=='__main__':
 
     sysConstants=netData['sysConstants']
     measEffect=netData['measEffect']  
-    if isDensity:
+    if not isDensity:
         samples=netData['samples']
-    else:    
+    else:
         samples=1
 
     sysConstants['numCpus']=1
@@ -163,9 +167,26 @@ if __name__=='__main__':
             timer.start()
     print('-'*50)
     print(f'Average Test Loss: {np.mean(test_loss):f}')
+    print(f'Test Loss Variance: {np.var(test_loss):f}')
     if TEST_TRIAN_DATA:
         print(f'Average Train Loss: {np.mean(train_loss):f}')
-    
+        print(f'Train Loss Variance: {np.var(train_loss):f}')
+
+if __name__=='__main__' and SAVE_TEST_DATA:
+    try:
+        testDf=pd.read_csv(os.path.join(testSavepath,TEST_DATA_FILENAME))
+    except:
+        testDf=pd.DataFrame(columns=['Name','Trial',\
+            'AvgTestLoss','VarTestLoss','TrainLoss','VarTrainLoss'])
+    if NET_FILENAME in testDf['Name'].values:
+        testDf.loc[testDf['Name']==NET_FILENAME]=[NET_FILENAME,TRIALS,\
+            np.mean(test_loss),np.var(test_loss),np.mean(train_loss),np.var(train_loss)]
+    else:
+        testDf=testDf.append({'Name':NET_FILENAME,'Trial':TRIALS,\
+            'AvgTestLoss':np.mean(test_loss),'VarTestLoss':np.var(test_loss),\
+            'TrainLoss':np.mean(train_loss),'VarTrainLoss':np.var(train_loss)},\
+            ignore_index=True)
+    testDf.to_csv(os.path.join(testSavepath,TEST_DATA_FILENAME),index=False)
 
 if  __name__=='__main__':
     # Prediction
@@ -188,6 +209,16 @@ if  __name__=='__main__':
     plt.show()
 
 if __name__=='__main__':
+    fig,axes=plt.subplots(1,1,figsize=(4,3))
+    axes.set_title('Phase Diagram of single-Step Prediction')
+    axes.set_ylim(-2,2)
+    yHatList=[Y.item() for Y in YHat]
+    yPreList=[Y.item() for Y in preY]
+    axes.scatter(yHatList[MULTI_PREFIX_SIZE:-1],yHatList[MULTI_PREFIX_SIZE+1:],s=2)
+    axes.scatter(yPreList[MULTI_PREFIX_SIZE:-1],yPreList[MULTI_PREFIX_SIZE+1:],s=2)
+    plt.show()
+
+if __name__=='__main__':
     ## Multi Step Prediction
     testShift=int(len(hmap)*(1-testSetRatio))+DATA_SHIFT
     preX,preY=hmap.data_as_tensor
@@ -207,5 +238,14 @@ if __name__=='__main__':
     axes.legend()
     plt.show()
 
+if __name__=='__main__':
+    fig,axes=plt.subplots(1,1,figsize=(4,3))
+    axes.set_title('Phase Diagram of Multi-Step Prediction')
+    axes.set_ylim(-2,2)
+    yHatList=[Y.item() for Y in YHat]
+    yPreList=[Y.item() for Y in preY]
+    axes.scatter(yHatList[MULTI_PREFIX_SIZE:-1],yHatList[MULTI_PREFIX_SIZE+1:],s=2)
+    axes.scatter(yPreList[MULTI_PREFIX_SIZE:-1],yPreList[MULTI_PREFIX_SIZE+1:],s=2)
+    plt.show()
 
 
