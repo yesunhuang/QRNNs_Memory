@@ -94,9 +94,10 @@ elif __name__=='__main__':
     activation=[0,2]
     inputQubits=outputQubits=[i for i in range(qubits)]
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
-    rescale={'WIn':1,'DeltaIn':1,'J':torch.tensor([0.5])}
+    rescale={'WIn':1,'J':torch.tensor([1.0]),'WOut':1}
     inactive=[]
-    sysConstants={'Dissipation':None,'tau':4.0,'steps':3,'numCpus':16}
+    sysConstants={'measureQuantity':'y','Dissipation':None,\
+        'tau':4.0,'steps':3,'numCpus':16}
     measEffect=False
 
 if __name__=='__main__':
@@ -141,8 +142,8 @@ if  TRAIN_NETWORK and __name__=='__main__':
     if LOAD_NETWORK:
         print('Are you sure to train the trained network?')
     num_epochs= 300
-    maxLevyStepSize=[1.0]*5
-    regular=[2,1,5,2,1]
+    maxLevyStepSize=[0.5]*5
+    regular=[5,1,5,5,1]
     nestNum=40
     step_epochs=5
 
