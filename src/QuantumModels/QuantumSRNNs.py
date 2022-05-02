@@ -378,8 +378,8 @@ class QuantumSystemFunction:
            
         for i in range(0,len(self.interQPairs)):
             pauliBasis=['i']*qubits
-            pauliBasis[self.interQPairs[i][0]]='x'
-            pauliBasis[self.interQPairs[i][1]]='x'
+            pauliBasis[self.interQPairs[i][0]]='z'
+            pauliBasis[self.interQPairs[i][1]]='z'
             sigma=self.__multi_qubits_sigma(pauliBasis)
             H_I+=J[i].item()*sigma
         return H_I,C_ops
