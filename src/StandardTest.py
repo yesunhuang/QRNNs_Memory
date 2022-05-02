@@ -20,7 +20,7 @@ def transform(Xs):
 #Some constants
 ##File names
 DATA_FILENAME='QExp1.csv'
-NET_FILENAME='QExpFSM3.pt'
+NET_FILENAME='QExpFZ.pt'
 TEST_DATA_FILENAME='QExp1Test.csv'
 ##Loss test configuration
 TRIALS=10
