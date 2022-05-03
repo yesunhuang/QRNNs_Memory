@@ -61,6 +61,7 @@ class GradFreeMSELoss(StandardCostFunc):
         if 'reduction' in self.kwargs:
             if self.kwargs['reduction']=='none':
                 l=self.loss(self.net.call_with_weight(X,weight),Y).mean()
+                return l.item()
         l=self.loss(self.net.call_with_weight(X,weight),Y)
         return l.item()
 
@@ -100,5 +101,6 @@ class GradFreeCrossEntropyLoss(StandardCostFunc):
         if 'reduction' in self.kwargs:
             if self.kwargs['reduction']=='none':
                 l=self.loss(self.net.call_with_weight(X,weight),Y).mean()
+                return l.item()
         l=self.loss(self.net.call_with_weight(X,weight),Y)
         return l.item()
