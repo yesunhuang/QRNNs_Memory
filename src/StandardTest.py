@@ -20,14 +20,14 @@ def transform(Xs):
 #Some constants
 ##File names
 DATA_FILENAME='QExp1.csv'
-NET_FILENAME='QExpFSFT.pt'
+NET_FILENAME='QExpF1.pt'
 TEST_DATA_FILENAME='QExp1Test.csv'
 ##Loss test configuration
-TRIALS=10
+TRIALS=20
 TRIALS_STEP=1
 TEST_TRIAN_DATA=False
 ##Prediction plot configuration
-MULTI_PREFIX_SIZE=5
+MULTI_PREFIX_SIZE=10
 MULTI_TOTAL_SIZE=100
 SINGLE_TOTAL_SIZE=100
 DATA_SHIFT=0
