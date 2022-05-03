@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpF2.pt'
+    filename='QExpFT1.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
@@ -151,7 +151,7 @@ if  TRAIN_NETWORK and __name__=='__main__':
     
     num_epochs= 100
     maxLevyStepSize=[0.1]*5
-    regular=[5,1,5,5,1]
+    regular=[5,1,10,5,1]
     nestNum=40
     step_epochs=5
 
