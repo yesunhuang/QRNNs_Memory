@@ -1,6 +1,6 @@
 '''
-Name: QExpF2
-Desriptption: Full power 2 qubits 
+Name: QExpF1
+Desriptption: Full power 2 qubits and defaut Omega
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One
@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpF2.pt'
+    filename='QExpF1.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
@@ -96,7 +96,7 @@ elif __name__=='__main__':
     interQPairs=[[i,j] for i in range(qubits) for j in range(i+1,qubits)]
     rescale={'WIn':1,'J':torch.tensor([0.5])}
     inactive=[]
-    sysConstants={'measureQuantity':'y','Dissipation':None,'Omega':2.0,\
+    sysConstants={'measureQuantity':'y','Dissipation':None,\
         'tau':4,'steps':3,'numCpus':16}
     measEffect=False
 
@@ -198,7 +198,7 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## Save the network
 if SAVE_NETWORK and __name__=='__main__':
     ## Parameters
-    filename='QExpF2.pt'
+    filename='QExpF1.pt'
     OptimizerConstant={'num_epochs':num_epochs,'maxLevyStepSize':maxLevyStepSize,\
         'nestNum':nestNum}
     netData={'NetParams':net.params,'NetConstants':net.constants,\
