@@ -20,7 +20,7 @@ def transform(Xs):
 #Some constants
 ##File names
 DATA_FILENAME='QExp1.csv'
-NET_FILENAME='QExpF1.pt'
+NET_FILENAME='QExpFSFT2.pt'
 TEST_DATA_FILENAME='QExp1Test.csv'
 ##Loss test configuration
 TRIALS=20
@@ -161,31 +161,27 @@ if __name__=='__main__':
             print('-'*50)
             print(f'Trial {i+1:d}/{TRIALS:d}')
             print(f'Test Loss: {test_loss[-1]:f}')
-            if TEST_TRIAN_DATA:
-                print(f'Train Loss: {train_loss[-1]:f}')
             print(f'Time Cost: {timeCost:f}s')
             timer.start()
     print('-'*50)
     print(f'Average Test Loss: {np.mean(test_loss):f}')
     print(f'Test Loss Variance: {np.var(test_loss):f}')
-    if TEST_TRIAN_DATA:
-        print(f'Average Train Loss: {np.mean(train_loss):f}')
-        print(f'Train Loss Variance: {np.var(train_loss):f}')
+
 
 if __name__=='__main__' and SAVE_TEST_DATA:
     try:
         testDf=pd.read_csv(os.path.join(testSavepath,TEST_DATA_FILENAME))
     except:
         testDf=pd.DataFrame(columns=['Name','Trial',\
-            'AvgTestLoss','VarTestLoss','TrainLoss','VarTrainLoss'])
+            'AvgTestLoss','VarTestLoss','MinTestLoss','MaxTestLoss','SavedTrainLoss'])
     if NET_FILENAME in testDf['Name'].values:
         testDf.loc[testDf['Name']==NET_FILENAME]=[NET_FILENAME,TRIALS,\
-            np.mean(test_loss),np.var(test_loss),np.mean(train_loss),np.var(train_loss)]
+            np.mean(test_loss),np.var(test_loss),np.min(test_loss),np.max(test_loss),l_epochs[-1][0]]
     else:
         testDf=testDf.append({'Name':NET_FILENAME,'Trial':TRIALS,\
             'AvgTestLoss':np.mean(test_loss),'VarTestLoss':np.var(test_loss),\
-            'TrainLoss':np.mean(train_loss),'VarTrainLoss':np.var(train_loss)},\
-            ignore_index=True)
+            'MinTestLoss':np.min(test_loss),'MaxTestLoss':np.max(test_loss),\
+            'SavedTrainLoss':l_epochs[-1][0]},ignore_index=True)
     testDf.to_csv(os.path.join(testSavepath,TEST_DATA_FILENAME),index=False)
 
 if  __name__=='__main__':
