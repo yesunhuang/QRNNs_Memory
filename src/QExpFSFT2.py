@@ -150,7 +150,7 @@ if  TRAIN_NETWORK and __name__=='__main__':
         print('Are you sure to train the trained network?')
     
     num_epochs= 100
-    maxLevyStepSize=[0.1]*5
+    maxLevyStepSize=[0.05]*5
     regular=[5,1,10,5,1]
     nestNum=40
     step_epochs=5
