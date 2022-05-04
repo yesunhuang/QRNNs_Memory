@@ -95,7 +95,7 @@ class SuportFunction:
             return: the state
             '''
             self.batch_size,self.hiddenSize=batch_size,hiddenSize
-            return (torch.full((batch_size,hiddenSize),self.initStateValue),)
+            return (torch.full((batch_size,hiddenSize),self.initStateValue,dtype=torch.float32),)
         return init_state
 
     def get_get_params_fun(self,inputRatio:float=1.0, outputRatio:float=1.0,\

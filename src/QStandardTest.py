@@ -1,5 +1,5 @@
 '''
-Name: StandardTest
+Name: QStandardTest
 Desriptption: Performing the standard test for QRNN
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
