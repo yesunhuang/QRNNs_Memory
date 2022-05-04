@@ -269,26 +269,34 @@ class SuportFunction:
         return: the function
         '''        
         self.outputTransoform=outputTransoform
+        self.interval=interval
         @torch.no_grad()
-        def predict_fun(prefix:torch.Tensor,net:StandardSNN,numPreds:int=1):
+        def predict_fun(input:torch.Tensor,net:StandardSNN,\
+                        numPreds:int=1,multiPred:bool=True):
             '''
             name: predict_fun
             function: predict the next numPreds
-            param {prefix}: the prefix
+            param {input}: the prefix of multi-prediction or single prediction input
             param {numPreds}: the number of prediction
             param {net}: the network
+            param {multiPred}: whether to use the multi-prediction
             return: the prediction
             '''
             state=net.begin_state(batch_size=1)
-            outputs=[pre for pre in prefix[0:interval]]
-            get_input=lambda: torch.unsqueeze(outputs[-interval],dim=0)
-            #warm-up
-            for Y in prefix[interval:]:
-                _,state=net(get_input(),state)
-                outputs.append(Y)
-            for _ in range(numPreds):
-                Y,state=net(get_input(),state)
-                outputs.append(Y)
+            outputs=[pre for pre in input[0:self.interval]]
+            get_input=lambda: torch.unsqueeze(outputs[-self.interval],dim=0)
+            if multiPred:
+                #warm-up
+                for Y in input[self.interval:]:
+                    _,state=net(get_input(),state)
+                    outputs.append(Y)
+                for _ in range(numPreds):
+                    Y,state=net(get_input(),state)
+                    outputs.append(Y)
+            else:
+                for X in input:
+                    Y,state=net(torch.unsqueeze(X,dim=0),state)
+                    outputs.append(Y)
             return self.outputTransoform(outputs)
         return predict_fun
     

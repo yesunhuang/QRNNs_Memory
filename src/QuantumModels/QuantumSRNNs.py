@@ -586,7 +586,7 @@ class QuantumSystemFunction:
         '''
         name: predict_fun
         function: predict the next numPreds
-        param {prefix}: the prefix of multi-prediction or single prediction input
+        param {input}: the prefix of multi-prediction or single prediction input
         param {numPreds}: the number of multi-prediction, this argument is useless in single prediction
         param {net}: the network
         param {multiPred}: whether the prediction is multi-prediction

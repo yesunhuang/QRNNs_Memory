@@ -1,6 +1,6 @@
 '''
-Name: QStandardTest
-Desriptption: Performing the standard test for QRNN
+Name: CStandardTest
+Desriptption: Performing the standard test for classical RNN
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment
@@ -9,6 +9,7 @@ Date: 2022-04-17 20:40:50
 '''
 #import all the things we need
 import os
+from unicodedata import name
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import matplotlib.pyplot as plt
 from matplotlib.ticker import  FormatStrFormatter
@@ -20,7 +21,7 @@ def transform(Xs):
 #Some constants
 ##File names
 DATA_FILENAME='QExp1.csv'
-NET_FILENAME='QExpFM.pt'
+NET_FILENAME='CExpFQC.pt'
 TEST_DATA_FILENAME='QExp1Test.csv'
 ##Loss test configuration
 TRIALS=20
@@ -36,8 +37,7 @@ SAVE_TEST_DATA=True
 
 if __name__=='__main__':
     from DataGenerator.HenonMapDataGen import HenonMapDataGen
-    from QuantumModels.QuantumSRNNs import QuantumSRNN
-    from QuantumModels.QuantumSRNNs import QuantumSystemFunction
+    from ClassicalModels.ClassicalSRNNs import ClassicalSRNN,SuportFunction
     from GradientFreeOptimizers.CostFunc import GradFreeMSELoss
     import GradientFreeOptimizers.Helpers as hp
 
@@ -48,7 +48,6 @@ if __name__=='__main__':
     netSavepath=os.path.join(currentPath,'TrainedNet','Exp')
     testSavepath=os.path.join(currentPath,'data','ModelTest','HenonMap','Exp')
     figSavepath=os.path.join(currentPath,'data','figures','STest')
-
 
 if __name__=='__main__':
     # Data Iter
@@ -79,65 +78,45 @@ if  __name__=='__main__':
 
     inputSize=netData['inputSize']
     outputSize=netData['outputSize']
-    qubits=netData['qubits']
+    hiddenSize=netData['hiddenSize']
     
-    inputQubits=netData['inputQubits']
-    outputQubits=netData['outputQubits']
-
-    isDensity=netData['isDensity']
-    activation=netData['activation']
+    inputRatio=netData['inputRatio']
+    outputRatio=netData['outputRatio']
+    initValue=netData['initValue']
     
-    interQPairs=netData['interQPairs']
     inactive=netData['inactive']
     rescale=netData['rescale']
 
-    sysConstants=netData['sysConstants']
-    measEffect=netData['measEffect']  
-    if not isDensity:
-        samples=netData['samples']
-    else:
-        samples=1
-
-    sysConstants['numCpus']=1
+    isTypical=netData['isTypical']
 
 if __name__=='__main__':
     ## print parameters
-    if isDensity:
-        print('QRNN Type: Unlimited Samples')
+    if isTypical:
+        print('CRNN Type: Normal SRN')
     else:
-        print(f'QRNN Type: Limited Samples of {samples:d}')
-    if measEffect:
-        print('Measurement Effect is enabled.')
-    else:
-        print('Measurement Effect is disabled.')
+        print('QRNN Type: Quantum Counterpart')
     print('Net Configuration:')
     print('-'*50)
-    print('Total Qubits:',qubits)
-    print('Input Qubits:\n',inputQubits)
-    print('Output Qubits:\n',outputQubits)
-    print('Initial Activation:\n',activation)
-    print('Interaction Pairs:\n',interQPairs)
-    print('SysConstant=\n',sysConstants)
+    print('Total hidden units:',hiddenSize)
+    print('Input Ratio:\n',inputRatio)
+    print('Output Ratio:\n',outputRatio)
+    print('Initial State Value:\n',initValue)
     print('-'*50)
     
 
 if __name__=='__main__':
     ## Get neccesary functions
-    srnnTestSup=QuantumSystemFunction()
+    srnnTestSup=SuportFunction()
     #transform=lambda Xs:[torch.squeeze(x) for x in Xs]
-    init_rnn_state=srnnTestSup.get_init_state_fun(activation=activation,\
-                                                isDensity=isDensity)
-    get_params=srnnTestSup.get_get_params_fun(inputQubits=inputQubits,\
-                                            outputQubits=outputQubits,\
-                                            interQPairs=interQPairs,\
-                                            inactive=inactive,\
-                                            rescale=rescale)
-    rnn=srnnTestSup.get_forward_fn_fun(samples=samples,\
-                                        measEffect=measEffect,\
-                                        sysConstants=sysConstants)
+    init_rnn_state=srnnTestSup.get_init_state_fun(initStateValue=initValue)
+    get_params=srnnTestSup.get_get_params_fun(inputRatio=inputRatio,\
+                                                outputRatio=outputRatio,\
+                                                rescale=rescale,\
+                                                inactive=inactive)
+    rnn=srnnTestSup.get_forward_fn_fun(isTypical=isTypical)
     predict_fun=srnnTestSup.get_predict_fun(outputTransoform=transform)
 
-    net=QuantumSRNN(inputSize,qubits,outputSize,get_params,init_rnn_state,rnn)
+    net=ClassicalSRNN(inputSize,hiddenSize,outputSize,get_params,init_rnn_state,rnn)
 
 if  __name__=='__main__':
     net.params=netData['NetParams']
@@ -155,9 +134,9 @@ if __name__=='__main__':
     train_loss=[]
     test_loss=[]
     for i in range(TRIALS):
-        test_loss.append(QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, True))
+        test_loss.append(SuportFunction.evaluate_accuracy(net, testIter, lossFunc, True))
         if TEST_TRIAN_DATA:
-            train_loss.append(QuantumSystemFunction.evaluate_accuracy(net, trainIter, lossFunc, True))
+            train_loss.append(SuportFunction.evaluate_accuracy(net, trainIter, lossFunc, True))
         if (i+1)%TRIALS_STEP==0:
             timeCost=timer.stop()
             print('-'*50)
@@ -267,6 +246,5 @@ if __name__=='__main__':
     figName=figRootName+'_MP_P'
     fig.savefig(os.path.join(figSavepath,figName+'.svg'),dpi=600,format='svg',bbox_inches='tight')
     fig.savefig(os.path.join(figSavepath,figName+'.pdf'),dpi=600,format='pdf',bbox_inches='tight')
-
 
 
