@@ -32,6 +32,8 @@ print(hmap)
 
 #Plot the data
 X,Y=hmap.data_as_array
+print('Data Mean:',np.mean(Y))
+print('Data Variance:',np.var(Y))
 
 #Plot the time series
 Yt=Y[OFFSET:OFFSET+TIME_PLOT_SIZE]
