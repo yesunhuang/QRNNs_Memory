@@ -1,6 +1,6 @@
 '''
-Name: QExpFM
-Desriptption: Full power 2 qubits with measurement effects 
+Name: QExpFM2
+Desriptption: Full power 2 qubits with measurement effects 2
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
 Msg: Experiment One
@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpFM.pt'
+    filename='QExpFM2.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
@@ -147,7 +147,7 @@ if  TRAIN_NETWORK and __name__=='__main__':
         nestNum=netData['OptimizerConstant']['nestNum']
     else:
         num_epochs= 300
-        maxLevyStepSize=[0.1]*5
+        maxLevyStepSize=[0.5]*5
         regular=[2,1,5,2,1]
         nestNum=40
     step_epochs=5
@@ -198,7 +198,7 @@ if TRAIN_NETWORK and __name__=='__main__':
     ## Save the network
 if SAVE_NETWORK and __name__=='__main__':
     ## Parameters
-    filename='QExpFM.pt'
+    filename='QExpFM2.pt'
     OptimizerConstant={'num_epochs':num_epochs,'maxLevyStepSize':maxLevyStepSize,\
         'nestNum':nestNum}
     netData={'NetParams':net.params,'NetConstants':net.constants,\
