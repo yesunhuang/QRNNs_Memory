@@ -25,7 +25,6 @@ TEST_DATA_FILENAME='QExp1Test.csv'
 ##Loss test configuration
 TRIALS=20
 TRIALS_STEP=1
-TEST_TRIAN_DATA=False
 ##Prediction plot configuration
 MULTI_PREFIX_SIZE=10
 MULTI_TOTAL_SIZE=100
@@ -152,12 +151,9 @@ if __name__=='__main__':
     print(f'Saved Test Loss: {l_epochs[-1][1]:f}')
 
     timer=hp.Timer()
-    train_loss=[]
     test_loss=[]
     for i in range(TRIALS):
         test_loss.append(QuantumSystemFunction.evaluate_accuracy(net, testIter, lossFunc, True))
-        if TEST_TRIAN_DATA:
-            train_loss.append(QuantumSystemFunction.evaluate_accuracy(net, trainIter, lossFunc, True))
         if (i+1)%TRIALS_STEP==0:
             timeCost=timer.stop()
             print('-'*50)
