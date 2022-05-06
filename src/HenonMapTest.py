@@ -45,9 +45,9 @@ trainIter,testIter=hmap.get_data_iter(testSetRatio,\
         numStep,batchSize,mask=0,shuffle=False,randomOffset=True)
 
 #Baseline
+test_loss=[]
+test_mean=[]
 for i in range(TRIALS):
-    test_loss=[]
-    test_mean=[]
     batchMean=[]
     batchVar=[]
     for _,Y in testIter:
@@ -59,6 +59,9 @@ for i in range(TRIALS):
     test_mean.append(np.mean(batchMean))
     print(f'Trial {i+1:d}/{TRIALS:d}')
     print(f'Test Loss: {test_loss[-1]:f}')
+print('-'*50)
+print(f'Average Test Loss: {np.mean(test_loss):f}')
+print(f'Test Loss Variance: {np.var(test_loss):f}')
 
 if __name__=='__main__' and SAVE_TEST_DATA:
     try:
