@@ -20,7 +20,7 @@ def transform(Xs):
 #Some constants
 ##File names
 DATA_FILENAME='QExp1.csv'
-NET_FILENAME='QExpFSFT.pt'
+NET_FILENAME='QExpFT1.pt'
 TEST_DATA_FILENAME='QExp1Test.csv'
 ##Loss test configuration
 TRIALS=20
@@ -30,7 +30,8 @@ MULTI_PREFIX_SIZE=10
 MULTI_TOTAL_SIZE=100
 SINGLE_TOTAL_SIZE=100
 DATA_SHIFT=0
-SAVE_TEST_DATA=True
+SAVE_TEST_DATA=False
+PLOT_ONLY=True
 
 
 if __name__=='__main__':
@@ -143,7 +144,7 @@ if  __name__=='__main__':
     net.constants=netData['NetConstants']
 
 ## Loss
-if __name__=='__main__':
+if __name__=='__main__' and not PLOT_ONLY:
     ## Loss function
     lossFunc=GradFreeMSELoss(net)
     l_epochs=netData['Loss']
@@ -166,7 +167,7 @@ if __name__=='__main__':
     print(f'Test Loss Variance: {np.var(test_loss):f}')
 
 
-if __name__=='__main__' and SAVE_TEST_DATA:
+if __name__=='__main__' and SAVE_TEST_DATA and not PLOT_ONLY:
     try:
         testDf=pd.read_csv(os.path.join(testSavepath,TEST_DATA_FILENAME))
     except:
@@ -198,8 +199,8 @@ if  __name__=='__main__':
     fig,axes=plt.subplots(1,1,figsize=(4,3))
     axes.set_title('Single-Step Prediction')
     axes.set_ylim(-2,2)
-    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label='Y')
-    axes.plot(torch.linspace(1,len(preY),len(preY)),YHat,label=r'$\hat{Y}$')
+    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label=r'$y_t$')
+    axes.plot(torch.linspace(1,len(preY),len(preY)),YHat,label=r'$\hat{y}_t$')
     axes.xaxis.set_major_formatter(FormatStrFormatter('%d'))
     axes.set_xlabel(r'$t$')
     axes.set_ylabel(r'$y_t$')
@@ -217,8 +218,9 @@ if __name__=='__main__':
     yPreList=[Y.item() for Y in preY]
     axes.set_xlabel(r'$x_t$')
     axes.set_ylabel(r'$y_t$')
-    axes.scatter(yHatList[MULTI_PREFIX_SIZE:-1],yHatList[MULTI_PREFIX_SIZE+1:],s=2)
-    axes.scatter(yPreList[MULTI_PREFIX_SIZE:-1],yPreList[MULTI_PREFIX_SIZE+1:],s=2)
+    axes.scatter(yHatList[MULTI_PREFIX_SIZE:-1],yHatList[MULTI_PREFIX_SIZE+1:],s=2,label=r'$\hat{y}$')
+    axes.scatter(yPreList[MULTI_PREFIX_SIZE:-1],yPreList[MULTI_PREFIX_SIZE+1:],s=2,label=r'$y$')
+    axes.legend()
     plt.show()
     figName=figRootName+'_SP_P'
     fig.savefig(os.path.join(figSavepath,figName+'.svg'),dpi=600,format='svg',bbox_inches='tight')
@@ -237,8 +239,8 @@ if __name__=='__main__':
     fig,axes=plt.subplots(1,1,figsize=(4,3))
     axes.set_title('Multi-Step Prediction')
     axes.set_ylim(-2,2)
-    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label='Y')
-    axes.plot(torch.linspace(1,len(preY),len(preY)),YHat,label=r'$\hat{Y}$')
+    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label=r'$y_t$')
+    axes.plot(torch.linspace(1,len(preY),len(preY)),YHat,label=r'$\hat{y}_t$')
     axes.vlines([MULTI_PREFIX_SIZE],ymin=-2,ymax=2,linestyles='dashed',label='Prediction')
     axes.set_xlabel(r'$t$')
     axes.set_ylabel(r'$y_t$')
@@ -257,8 +259,9 @@ if __name__=='__main__':
     yPreList=[Y.item() for Y in preY]
     axes.set_xlabel(r'$x_t$')
     axes.set_ylabel(r'$y_t$')
-    axes.scatter(yHatList[MULTI_PREFIX_SIZE:-1],yHatList[MULTI_PREFIX_SIZE+1:],s=2)
-    axes.scatter(yPreList[MULTI_PREFIX_SIZE:-1],yPreList[MULTI_PREFIX_SIZE+1:],s=2)
+    axes.scatter(yHatList[MULTI_PREFIX_SIZE:-1],yHatList[MULTI_PREFIX_SIZE+1:],s=2,label=r'$\hat{y}$')
+    axes.scatter(yPreList[MULTI_PREFIX_SIZE:-1],yPreList[MULTI_PREFIX_SIZE+1:],s=2,label=r'$y$')
+    axes.legend()
     plt.show()
     figName=figRootName+'_MP_P'
     fig.savefig(os.path.join(figSavepath,figName+'.svg'),dpi=600,format='svg',bbox_inches='tight')
