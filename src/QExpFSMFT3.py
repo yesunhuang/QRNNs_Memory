@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     # Load the network
 if LOAD_NETWORK and __name__=='__main__':
-    filename='QExpFSMFT2.pt'
+    filename='QExpFM.pt'
     netData=torch.load(os.path.join(netSavepath,filename))
 
     inputSize=netData['inputSize']
