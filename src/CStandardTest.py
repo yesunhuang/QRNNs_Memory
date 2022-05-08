@@ -20,7 +20,7 @@ def transform(Xs):
 #Some constants
 ##File names
 DATA_FILENAME='QExp1.csv'
-NET_FILENAME='CExpFQC.pt'
+NET_FILENAME='CExpFN.pt'
 TEST_DATA_FILENAME='QExp1Test.csv'
 ##Loss test configuration
 TRIALS=20
@@ -181,7 +181,7 @@ if  __name__=='__main__':
     fig,axes=plt.subplots(1,1,figsize=(4,3))
     axes.set_title('Single-Step Prediction')
     axes.set_ylim(-2,2)
-    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label=r'y_t')
+    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label=r'$y_t$')
     axes.plot(torch.linspace(1,len(preY),len(preY)),YHat,label=r'$\hat{y}_t$')
     axes.xaxis.set_major_formatter(FormatStrFormatter('%d'))
     axes.set_xlabel(r'$t$')
@@ -221,7 +221,7 @@ if __name__=='__main__':
     fig,axes=plt.subplots(1,1,figsize=(4,3))
     axes.set_title('Multi-Step Prediction')
     axes.set_ylim(-2,2)
-    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label=r'y_t')
+    axes.plot(torch.linspace(1,len(preY),len(preY)),preY,label=r'$y_t$')
     axes.plot(torch.linspace(1,len(preY),len(preY)),YHat,label=r'$\hat{y}_t$')
     axes.vlines([MULTI_PREFIX_SIZE],ymin=-2,ymax=2,linestyles='dashed',label='Prediction')
     axes.set_xlabel(r'$t$')
