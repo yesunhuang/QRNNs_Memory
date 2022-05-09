@@ -20,7 +20,7 @@ def transform(Xs):
 #Some constants
 ##File names
 DATA_FILENAME='QExp1.csv'
-NET_FILENAME='CExpFN.pt'
+NET_FILENAME='CExpFQC.pt'
 TEST_DATA_FILENAME='QExp1Test.csv'
 ##Loss test configuration
 TRIALS=20
@@ -33,6 +33,7 @@ SINGLE_TOTAL_SIZE=100
 DATA_SHIFT=0
 SAVE_TEST_DATA=False
 PLOT_ONLY=True
+SAVE_PLOT=False
 
 
 if __name__=='__main__':
@@ -189,6 +190,7 @@ if  __name__=='__main__':
     axes.legend()
     plt.show()
     figName=figRootName+'_SP_T'
+if __name__=='__main__' and SAVE_PLOT:
     fig.savefig(os.path.join(figSavepath,figName+'.svg'),dpi=600,format='svg',bbox_inches='tight')
     fig.savefig(os.path.join(figSavepath,figName+'.pdf'),dpi=600,format='pdf',bbox_inches='tight')
 
@@ -205,6 +207,7 @@ if __name__=='__main__':
     axes.legend()
     plt.show()
     figName=figRootName+'_SP_P'
+if __name__=='__main__' and SAVE_PLOT:
     fig.savefig(os.path.join(figSavepath,figName+'.svg'),dpi=600,format='svg',bbox_inches='tight')
     fig.savefig(os.path.join(figSavepath,figName+'.pdf'),dpi=600,format='pdf',bbox_inches='tight')
 
@@ -230,6 +233,7 @@ if __name__=='__main__':
     axes.legend()
     plt.show()
     figName=figRootName+'_MP_T'
+if __name__=='__main__' and SAVE_PLOT:
     fig.savefig(os.path.join(figSavepath,figName+'.svg'),dpi=600,format='svg',bbox_inches='tight')
     fig.savefig(os.path.join(figSavepath,figName+'.pdf'),dpi=600,format='pdf',bbox_inches='tight')
 
@@ -246,6 +250,7 @@ if __name__=='__main__':
     axes.legend()
     plt.show()
     figName=figRootName+'_MP_P'
+if __name__=='__main__' and SAVE_PLOT:
     fig.savefig(os.path.join(figSavepath,figName+'.svg'),dpi=600,format='svg',bbox_inches='tight')
     fig.savefig(os.path.join(figSavepath,figName+'.pdf'),dpi=600,format='pdf',bbox_inches='tight')
 

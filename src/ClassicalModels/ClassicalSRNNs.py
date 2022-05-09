@@ -293,9 +293,11 @@ class SuportFunction:
                 for _ in range(numPreds):
                     Y,state=net(get_input(),state)
                     outputs.append(Y)
+                    #print(state[0])
             else:
                 for X in input:
                     Y,state=net(torch.unsqueeze(X,dim=0),state)
+                    #print(state[0])
                     outputs.append(Y)
             return self.outputTransoform(outputs)
         return predict_fun

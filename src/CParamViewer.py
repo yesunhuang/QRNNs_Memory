@@ -20,7 +20,7 @@ if __name__=='__main__':
     netSavepath=os.path.join(currentPath,'TrainedNet','Exp')
 
 if __name__=='__main__':
-    filename='QExpFMFT.pt'
+    filename='CExpFQC.pt'
 
 
 if  __name__=='__main__':
@@ -28,20 +28,16 @@ if  __name__=='__main__':
 
     inputSize=netData['inputSize']
     outputSize=netData['outputSize']
-    qubits=netData['qubits']
+    hiddenSize=netData['hiddenSize']
     
-    inputQubits=netData['inputQubits']
-    outputQubits=netData['outputQubits']
-    activation=netData['activation']
+    inputRatio=netData['inputRatio']
+    outputRatio=netData['outputRatio']
+    initValue=netData['initValue']
     
-    isDensity=netData['isDensity']
-    interQPairs=netData['interQPairs']
-    rescale=netData['rescale']
     inactive=netData['inactive']
-    sysConstants=netData['sysConstants']
-    measEffect=netData['measEffect']
+    rescale=netData['rescale']
 
-    sysConstants['numCpus']=1
+    isTypical=netData['isTypical']
 
     print('params:\n','-'*40)
     for param in netData['NetParams']:
