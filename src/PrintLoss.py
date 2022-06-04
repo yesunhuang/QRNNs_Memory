@@ -1,5 +1,5 @@
 '''
-Name: QExp1
+Name: PrintLoss
 Desriptption: Experiment One 
 Email: yesunhuang@mail.ustc.edu.cn
 OpenSource: https://github.com/yesunhuang
@@ -50,12 +50,12 @@ if DRAW_LOSS and __name__=='__main__':
     axes.set_xlabel('Epoch')
     axes.set_ylabel('Train Loss')
     #axes.set_xlim(0,300)
-    cor={'QFPM':'lightskyblue','QFPM_FT':'limegreen','CSM':'lightcoral',\
-        'CQCM':'khaki','QISMM':'orange','QFPMD':'violet'}
-    axes.plot(range(0,len(trainLoss_QFPM)),trainLoss_QFPM,color=cor['QFPM'],linestyle='-',label='QFPM')
-    axes.plot(range(0,len(trainLoss_QFPMD)),trainLoss_QFPMD,color=cor['QFPMD'],linestyle='-',label='QFPMD')
-    axes.plot(range(0,len(trainLoss_QISMM)),trainLoss_QISMM,color=cor['QISMM'],linestyle='-',label='QISMM')
-    axes.plot(range(0,len(trainLoss_QFPM_FT[302:])),trainLoss_QFPM_FT[302:],color=cor['QFPM_FT'],linestyle='-',label='QFPM(FT)')
+    cor={'QDMM':'lightskyblue','QDMM_FT':'limegreen','CSM':'lightcoral',\
+        'CQCM':'khaki','QDMMM':'orange','QDMMD':'violet'}
+    axes.plot(range(0,len(trainLoss_QFPM)),trainLoss_QFPM,color=cor['QDMM'],linestyle='-',label='QDMM')
+    axes.plot(range(0,len(trainLoss_QFPMD)),trainLoss_QFPMD,color=cor['QDMMD'],linestyle='-',label='QDMMD')
+    axes.plot(range(0,len(trainLoss_QISMM)),trainLoss_QISMM,color=cor['QDMMM'],linestyle='-',label='QDMMM')
+    axes.plot(range(0,len(trainLoss_QFPM_FT[302:])),trainLoss_QFPM_FT[302:],color=cor['QDMM_FT'],linestyle='-',label='QDMM(FT)')
     axes.plot(range(0,len(trainLoss_CSM)),trainLoss_CSM,color=cor['CSM'],linestyle='-',label='CSM')
     axes.plot(range(0,len(trainLoss_CQCM)),trainLoss_CQCM,color=cor['CQCM'],linestyle='-',label='CQCM')
     plt.legend()
